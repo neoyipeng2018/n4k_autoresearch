@@ -153,3 +153,54 @@ Rejected in cycle 1:
 - `~/.cache/macroresearch/metadata/ingestion_manifest.json`
 - FRED data files under `~/.cache/macroresearch/`
 - CFTC financial futures raw file at `~/.cache/macroresearch/positioning/FinFutYY.txt`
+
+## Continued research loop — 10 iterations completed
+
+Date: 2026-05-26
+
+### Additional data work
+
+Parsed enough of the raw CFTC financial futures file to identify 2026 positioning percentiles for major FX, equity-index, rates, and SOFR/Fed Funds contracts. Key observations:
+
+- Yen asset-manager net positioning was at the 5th percentile of 2026 observations; leveraged-money yen net was at the 30th percentile.
+- NASDAQ mini asset-manager net positioning was at the 100th percentile; Russell E-mini leveraged-money net positioning was at the 5th percentile.
+- 2y and 5y Treasury leveraged-money net shorts were at the 100th percentile of the 2026 sample; 10y leveraged-money net was at the 80th percentile.
+- SOFR-3M leveraged-money net positioning was at the 5th percentile and had become more bearish over four weeks.
+
+### Iteration outcomes
+
+1. `IWM-vs-QQQ-neglected-breadth-reversal-001` — watchlist. Small-cap/equal-weight catch-up versus crowded mega-cap leadership.
+2. `CADJPY-oil-yen-funding-001` — watchlist. Oil terms-of-trade support versus yen funding weakness.
+3. `US2s10s-flattener-sticky-inflation-001` — watchlist. Sticky inflation front-end repricing versus long-end cap.
+4. `Gold-inflation-hedge-001` — reject. Real yields are too strong an offset; breakevens are cleaner.
+5. `Short-Nasdaq-outright-001` — reject. Outright short is too blunt; relative-value expression is better.
+6. `AUD-commodity-growth-001` — reject. Copper/global growth data stale and AUD positioning extended.
+7. `Long-oil-after-shock-001` — reject. First-order move likely already obvious; curve/inventory data missing.
+8. `HY-credit-carry-001` — reject. Tight spreads offer poor margin of safety.
+9. `Broad-USD-policy-divergence-001` — reject. Too many conflicting channels; cleaner expressions exist.
+10. `Long-vol-complacency-001` — reject. Low VIX alone is not a catalyst and vol products require term-structure/skew data.
+
+### Updated watchlist ideas
+
+- `US5Y-breakevens-energy-inflation-001`
+- `IWM-vs-QQQ-neglected-breadth-reversal-001`
+- `CADJPY-oil-yen-funding-001`
+- `US2s10s-flattener-sticky-inflation-001`
+
+### Updated rejected count
+
+New rejects in the 10-iteration continuation: 7.
+
+Total rejects logged in this run: 9, below the hard stop threshold of 10 rejected ideas. No ideas were marked `accept`, so the 3-accepted-ideas stop was not reached.
+
+### Repeated themes / risk of thesis duplication
+
+The loop is beginning to cluster around one macro state: resilient nominal growth + commodity/inflation impulse + easy credit + high real yields + crowded mega-cap/yen/rates positioning. The next iteration should either add missing data to test these themes more rigorously or deliberately branch into non-US/non-energy hypotheses.
+
+### Data gaps now most important
+
+1. Treasury issuance/refunding and auction data for curve trades.
+2. Commodity futures curve and inventory data for oil/energy trades.
+3. Stable ETF/market price ingestion not blocked by Yahoo 429.
+4. Official event calendar for CPI/PCE/FOMC/BoJ/BoC/Treasury auctions.
+5. Clean parsed CFTC positioning time series beyond the current quick percentile scan.
