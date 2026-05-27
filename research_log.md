@@ -354,3 +354,37 @@ ballast: SHY
 ```
 
 Next robustness work should test transaction costs/slippage, tax-aware turnover, longer historical ETF/proxy data before 2016, and alternatives to `DBC` that reduce commodity roll risk.
+
+## Transaction-cost and universe sanity pass — 2026-05-27
+
+Additional verification run used Yahoo Finance adjusted-close data through 2026-05-26 and the selected robust default: trend 150d, momentum 189d, vol lookback 126d, 10% target vol, top 2, 33% sleeve cap, `SHY` ballast.
+
+### Turnover and cost sensitivity
+
+The rule has meaningful but manageable monthly turnover: about 333% annual one-way notional turnover in the quick screen. Cost sensitivity remains acceptable for liquid ETFs:
+
+| One-way cost assumption | CAGR | Vol | Sharpe | Max DD | Calmar | Current allocation |
+|---:|---:|---:|---:|---:|---:|---|
+| 0 bps | 10.33% | 6.88% | 1.47 | -9.02% | 1.15 | `SPY` 33.0%, `DBC` 22.8%, `SHY` 44.2% |
+| 2 bps | 10.26% | 6.88% | 1.47 | -9.19% | 1.12 | same |
+| 5 bps | 10.15% | 6.88% | 1.47 | -9.46% | 1.07 | same |
+| 10 bps | 9.97% | 6.88% | 1.47 | -9.90% | 1.01 | same |
+| 25 bps | 9.42% | 6.88% | 1.47 | -11.20% | 0.84 | same |
+
+Interpretation: because the instruments are large liquid ETFs and the account size is only ~$80k, the strategy is not killed by reasonable spread/slippage assumptions. Taxes are still not modeled and remain an important real-world caveat.
+
+### Alternative universe check
+
+The core universe remains preferable to larger or more equity-heavy universes under the same robust default and 5 bps one-way cost assumption:
+
+| Universe | CAGR | Vol | Sharpe | Max DD | Calmar | Comment |
+|---|---:|---:|---:|---:|---:|---|
+| `SPY`, `USMV`, `GLD`, `DBC` | 10.15% | 6.88% | 1.47 | -9.46% | 1.07 | Best balance of return, drawdown, simplicity, and macro diversification. |
+| `SPY`, `USMV`, `GLD` | 8.09% | 6.53% | 1.25 | -12.23% | 0.66 | Removing `DBC` reduces commodity roll concern but worsens return and drawdown. |
+| `SPY`, `USMV`, `QUAL`, `MTUM`, `GLD`, `DBC` | 9.80% | 7.65% | 1.29 | -9.00% | 1.09 | Similar Calmar but higher turnover and more factor complexity. |
+| Broad equity styles + real assets | 7.93% | 8.59% | 0.96 | -10.87% | 0.73 | More moving parts and poorer reward-to-risk. |
+| Sector ETFs + real assets | 6.35% | 8.68% | 0.78 | -15.10% | 0.42 | Too noisy/complex for this objective. |
+
+### Updated conclusion
+
+This pass strengthens rather than replaces `retail-tail-risk-momentum-001`. The best current idea remains the simple long-only core ETF trend/momentum rule, not an expanded sector/factor optimizer and not a discretionary macro pair. Main unresolved caveats: taxes, pre-2016 proxy history, `DBC` roll/carry mechanics, and production-grade data validation.
