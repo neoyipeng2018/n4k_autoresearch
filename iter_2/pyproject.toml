@@ -1,0 +1,31 @@
+[project]
+name = "macro-autoresearch"
+version = "0.1.0"
+description = "Autonomous maximize-CAGR-without-ruin retail macro quant strategy search"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.0",
+    "pandas>=2.2.0",
+    "requests>=2.32.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13.0",
+    "pandas-stubs>=2.2.0",
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
