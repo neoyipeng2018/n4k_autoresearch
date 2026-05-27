@@ -1,6 +1,6 @@
 # Tradable Universe
 
-This document defines the preferred universe for macro research. The goal is to keep ideas liquid, understandable, monitorable, and implementable without relying on obscure instruments.
+This document defines the preferred universe for macro research. The goal is to keep ideas liquid, understandable, monitorable, and implementable for a retail quant with approximately $80k in an IB account, without relying on obscure instruments.
 
 This is not a recommendation to trade any instrument. It is a research universe for idea generation.
 
@@ -14,10 +14,14 @@ Prefer instruments that are:
 - Closely linked to the macro thesis.
 - Reasonable for directional or relative-value expression.
 - Not dependent on hidden leverage or inaccessible financing.
+- Suitable for ~$80k retail IB implementation after commissions, spreads, borrow, margin, and tax/turnover frictions.
+- Capacity-insensitive at small size and not dominated by crowded smart-money positioning.
 
-Prefer relative-value trades when they isolate the thesis better than outright risk-on/risk-off direction.
+Prefer relative-value trades when they isolate the thesis better than outright risk-on/risk-off direction, but do not accept a relative-value trade merely because it is elegant. If a long-only ETF, cash-ballast, or systematic trend expression has better drawdown-adjusted reward-to-risk for the retail account, prefer the simpler expression.
 
 Avoid instruments where the macro signal is likely dominated by idiosyncratic company, regulatory, political, or liquidity risk.
+
+For the default $80k retail objective, avoid or heavily penalize strategies requiring complex options, futures margin, leveraged/inverse ETPs, volatility ETPs, hard-to-borrow shorts, or unbounded loss. These may be discussed conceptually but require explicit human review before acceptance.
 
 ## Asset classes
 

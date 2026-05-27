@@ -2,15 +2,27 @@
 
 This document defines the house framework for generating and testing macro trade ideas.
 
-The objective is not to summarize the macro environment. The objective is to identify **tradable mispricings caused by a gap between economic reality, market pricing, and smart-money attention or constraints**.
+The objective is not to summarize the macro environment. The objective is to identify **the best reward-to-risk macro trading idea for a retail quant with approximately $80k in an IB account**, caused by a gap between economic reality, market pricing, implementation constraints, and smart-money attention or crowding.
 
 ## Core research question
 
 For every hypothesis, answer:
 
 ```text
-What macro mechanism is likely to drive asset prices, what is the market currently pricing, and why might sophisticated investors still be underweight, inattentive, constrained, or using the wrong expression?
+What macro mechanism is likely to drive asset prices, what is the market currently pricing, why might sophisticated investors still be underweight, inattentive, constrained, crowded, or using the wrong expression, and is there a retail-implementable IB expression with superior reward-to-risk for an ~$80k account?
 ```
+
+## Retail quant objective filter
+
+Every hypothesis must pass a retail-account filter before it can be accepted:
+
+- Can it be implemented at IB with approximately $80k without excessive leverage, borrow, financing, slippage, or operational complexity?
+- Does the expression use liquid, transparent instruments that can be monitored and exited under stress?
+- Is the expected reward-to-risk better than simpler alternatives such as cash/short-duration Treasury ballast, broad ETFs, trend/momentum rules, or lower-complexity relative-value expressions?
+- Does the idea avoid crowded smart-money battlegrounds, or does it exploit a reason smart money may ignore, under-own, or mis-express the thesis?
+- Can the trade be explained in plain language from macro mechanism to asset-price implication to invalidation criteria?
+
+A strategy that is theoretically elegant but impractical for an $80k retail IB account is not a strong candidate here.
 
 ## Regime snapshot template
 
