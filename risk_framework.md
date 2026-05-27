@@ -2,7 +2,7 @@
 
 This document defines risk principles for macro research ideas. It is not portfolio advice and does not prescribe position sizing for the user.
 
-The purpose is to force every idea to describe downside, path risk, carry, liquidity, and invalidation before it can be marked `accept`.
+The purpose is to force every idea to describe downside, path risk, carry, liquidity, retail implementation frictions, smart-money crowding, and invalidation before it can be marked `accept`. The default account lens is a retail quant with approximately $80k in an IB account seeking the best reward-to-risk macro idea, not maximum gross return or institutional complexity.
 
 ## Core rule
 
@@ -15,6 +15,8 @@ No idea can be accepted unless the following are explicit:
 - Monitoring dashboard.
 - Reason the trade expression matches the thesis.
 - Reason smart money may be ignoring or under-owning the opportunity.
+- Reason the trade is suitable for an ~$80k retail IB account.
+- Reason the reward-to-risk is superior to simpler alternatives.
 
 ## Status definitions
 
@@ -30,6 +32,8 @@ Use only when:
 - Invalidation criteria are observable.
 - Risk is bounded or at least well understood.
 - The idea is not simply consensus in another form.
+- Retail IB implementation is realistic after margin, borrow, financing, liquidity, tax/turnover, and operational complexity.
+- Expected reward-to-risk is strong versus simpler alternatives and tail risk is explicitly addressed.
 
 ### watchlist
 
@@ -102,6 +106,12 @@ Score risk understanding from 1 to 5, where higher means the risk is better unde
    - Treasury refunding / auctions.
    - Geopolitical events.
 
+8. **Retail implementation and tail risk**
+   - Does the trade fit an ~$80k IB account without hidden leverage or forced liquidation risk?
+   - Are borrow, margin, financing, ETF spread, tax/turnover, and execution costs small relative to the expected edge?
+   - Does the strategy avoid gap risk, crowded unwind risk, and slow persistent drawdown risk?
+   - Is there a simpler long-only, cash-ballast, or systematic alternative with better Calmar / drawdown / CVaR?
+
 ## Prohibited or restricted ideas
 
 By default, do not mark as `accept` without explicit human review:
@@ -161,6 +171,8 @@ A high total score is not enough. An idea is automatically not `accept` if:
 - No discussion of carry/roll/financing.
 - No plausible explanation of mispricing or neglect.
 - Trade expression is outside the approved universe.
+- It cannot be implemented cleanly in an ~$80k retail IB account.
+- It has worse drawdown-adjusted reward-to-risk than a simpler liquid alternative.
 
 ## Human-review triggers
 

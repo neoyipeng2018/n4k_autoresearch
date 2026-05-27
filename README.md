@@ -1,21 +1,23 @@
 # macroresearch
 
-This repository is for autonomous macro research: generating, falsifying, scoring, and logging tradable macro ideas.
+This repository is for autonomous macro research: generating, falsifying, scoring, and logging tradable macro ideas in order to find **the best macro trading idea for a retail quant with approximately $80k USD in an Interactive Brokers (IB/IBKR) account**.
 
-The explicit research objective is to find **the best tradable macro ideas that are plausibly ignored, under-owned, mispriced, or under-discussed by smart money** for structural, behavioral, mandate, implementation, benchmark, or time-horizon reasons.
+The explicit research objective is to find **the best reward-to-risk macro trade that a retail quant can realistically implement**, while still being grounded in macro theory, current data, falsifiable logic, and a clear explanation of why the opportunity is not already fully harvested by smart money. The goal is not to beat hedge funds at their most crowded trades; it is to find expressions where retail account structure, smaller size, flexibility, or simpler implementation can avoid smart-money crowding and institutional mandate constraints.
 
 This is research and education only. It is not investment advice, not a recommendation to trade, and not a substitute for independent risk review.
 
 ## What makes an idea interesting here
 
-A candidate idea should combine four elements:
+A candidate idea should combine six elements:
 
 1. **Causal macro mechanism** — the trade must follow from a coherent economic or market-structure transmission channel.
 2. **Evidence** — current data must support the mechanism, while contradictory evidence is explicitly addressed.
 3. **Tradability** — the expression must be liquid enough, monitorable, and aligned with the thesis.
 4. **Neglect / mispricing reason** — the idea should explain why smart money may not already fully own or price it.
+5. **Retail IB suitability** — the trade must be realistic for about $80k at IB, including margin, borrow, financing, liquidity, taxes, fractional-share feasibility, and operational complexity.
+6. **Reward-to-risk superiority** — the idea must compete against simpler alternatives on drawdown, tail risk, Calmar/Sharpe, carry, implementation costs, and explainability.
 
-The fourth requirement matters. A good macro narrative is not enough. The research should ask: *why would this opportunity still exist?*
+The fourth, fifth, and sixth requirements matter. A good macro narrative is not enough. The research should ask: *why would this opportunity still exist, why is it suitable for an $80k retail IB account, and why is its reward-to-risk better than simpler alternatives?*
 
 ## Sources of smart-money neglect
 
@@ -31,6 +33,7 @@ Use these as hypotheses, not excuses:
 - **Narrative dominance**: a dominant consensus story may obscure a contradictory but measurable mechanism.
 - **Policy ambiguity**: markets may underprice nonlinear policy reaction functions or constraints.
 - **Instrument mismatch**: the obvious trade may be crowded, while a cleaner relative-value expression is ignored.
+- **Retail edge**: small account size can make simple, liquid, capacity-insensitive ETF or FX expressions viable while avoiding institutional crowding, mandate pressure, and complex derivative plumbing.
 
 ## Repository workflow
 

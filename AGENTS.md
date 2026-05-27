@@ -1,8 +1,10 @@
 # macroresearch
 
-This is an experiment to have the LLM do autonomous macro research and generate **macro trading ideas that are grounded in logic, theory, data, and falsifiable reasoning**.
+This is an experiment to have the LLM do autonomous macro research and find **the single best macro trading idea** for a retail quant with approximately **$80k USD in assets at Interactive Brokers (IB/IBKR)**.
 
-The goal is not to produce a stream of clever narratives. The goal is to produce trade ideas where the causal mechanism is explicit, the theoretical anchor is clear, the data evidence is checkable, the trade expression is coherent, and the failure conditions are known in advance.
+The goal is not to produce a stream of clever narratives or generic institutional macro trades. The goal is to identify the idea with the best **reward-to-risk ratio** that is realistic for a retail quant to implement, theoretically justified, empirically checkable, explainable in plain language, and structured to avoid crowded smart-money battlegrounds as much as possible.
+
+Every candidate must be judged through the lens of an $80k IB account: liquidity, margin, borrow, financing, commissions, taxes, fractional-share feasibility, operational complexity, drawdown tolerance, tail risk, and whether the edge survives after implementation frictions. A beautiful macro idea that is too crowded, too levered, too complex, too expensive to express, or too exposed to gap/tail risk is not the best idea for this repository.
 
 This document is for research and education only. It is not investment advice, a recommendation to trade, or a substitute for independent risk review.
 
@@ -89,9 +91,9 @@ Once setup is complete, begin the research loop.
 
 The goal is simple:
 
-> Find macro trading ideas that are logically grounded, theoretically coherent, empirically supported, tradable, and falsifiable.
+> Find the best macro trading idea for a retail quant with approximately $80k in an IB account: logically grounded, theoretically coherent, empirically supported, tradable, falsifiable, explainable, and offering the best reward-to-risk ratio while avoiding crowded smart-money trades as much as possible.
 
-A valid macro trade idea must answer six questions:
+A valid macro trade idea must answer eight questions:
 
 1. **What is the trade?**  
    The instrument, direction, time horizon, and expression.
@@ -110,6 +112,12 @@ A valid macro trade idea must answer six questions:
 
 6. **Why is the trade expression appropriate?**  
    The chosen instrument must match the thesis, horizon, risk, convexity, and catalyst path.
+
+7. **Why is it suitable for an $80k retail IB account?**  
+   The expression must be implementable with realistic retail constraints: liquid instruments, manageable margin/financing, limited operational complexity, and no hidden leverage or unbounded loss unless explicitly approved by the human.
+
+8. **Why is it not just a crowded smart-money trade?**  
+   The idea must explain whether sophisticated investors are ignoring it, structurally constrained, mis-expressing it, or already crowded. If the trade is a known institutional battleground, the research must either find a cleaner retail expression or reject/watchlist it.
 
 ---
 
@@ -432,6 +440,18 @@ Each accepted idea must be written in this structure.
 ## Why the market may be wrong
 <Explain the disagreement versus consensus, pricing, positioning, or implied path.>
 
+## Why smart money may not already own it
+<Explain whether the opportunity is ignored, under-owned, mandate-constrained, mis-expressed, or already crowded. If it is crowded, explain why it should be rejected or only watchlisted.>
+
+## Retail IB suitability
+- Account lens: ~$80k IB account.
+- Liquidity / fractional-share feasibility:
+- Margin / borrow / financing:
+- Commission / spread / tax / turnover friction:
+- Operational complexity:
+- Tail-risk controls:
+- Simpler alternatives compared:
+
 ## Supporting evidence
 - Evidence 1:
 - Evidence 2:
@@ -466,6 +486,8 @@ Track:
 - Positioning risk:
 - Correlation / cross-asset risk:
 - Event risk:
+- Retail implementation risk:
+- Tail / gap risk:
 
 ## Expected payoff profile
 - Base case:
@@ -520,11 +542,11 @@ Is the expected payoff attractive relative to the identifiable downside?
 
 ### 5. Implementation score
 
-Does the trade expression cleanly match the thesis?
+Does the trade expression cleanly match the thesis and fit the ~$80k retail IB account objective?
 
-- **1** — Expression is noisy, expensive, or mismatched.
-- **3** — Tradable but with meaningful basis or carry issues.
-- **5** — Clean expression with known risks and monitoring variables.
+- **1** — Expression is noisy, expensive, mismatched, crowded, levered, operationally complex, or poor for an $80k retail IB account.
+- **3** — Tradable but with meaningful basis, carry, financing, borrow, liquidity, tax/turnover, or tail-risk issues.
+- **5** — Clean, liquid, explainable expression with known risks, low implementation friction, bounded tail risk, and clear monitoring variables.
 
 The total score is:
 
@@ -541,7 +563,7 @@ Interpretation:
  5-10: discard
 ```
 
-A trade idea with no invalidation criteria is automatically rejected, regardless of score.
+A trade idea with no invalidation criteria is automatically rejected, regardless of score. A trade idea that cannot be implemented cleanly for the $80k retail IB objective, or that has worse drawdown-adjusted reward-to-risk than a simpler liquid alternative, should not be marked `accept`.
 
 ---
 
@@ -564,6 +586,8 @@ asymmetry_score:       4
 implementation_score:  3
 total_score:           18
 main_risk:             FX intervention or dovish Fed repricing
+retail_ib_fit:         moderate; options complexity and intervention gap risk require caution
+smart_money_angle:     plausible policy-divergence trade but crowding/intervention risk may be high
 invalidation:          US real yields break lower while BoJ reprices hawkishly
 ```
 
@@ -759,6 +783,10 @@ Before an idea can be marked `accept`, verify:
 [ ] Invalidation criteria are explicit.
 [ ] Monitoring indicators are listed.
 [ ] The idea is not just a restatement of consensus.
+[ ] Smart-money crowding / neglect / mis-expression is addressed.
+[ ] The trade is realistic for an ~$80k IB account.
+[ ] Tail risk, gap risk, and forced-liquidation risk are considered.
+[ ] The idea beats simpler liquid alternatives on expected reward-to-risk.
 ```
 
 If any of these are missing, the idea is `watchlist`, `needs_data`, or `reject`, not `accept`.
