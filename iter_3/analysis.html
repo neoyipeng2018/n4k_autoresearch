@@ -1,0 +1,4 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><title>iter_3 OOS CAGR Analysis</title><style>body{font-family:system-ui;margin:40px;max-width:900px;line-height:1.5}code,pre{background:#f4f4f5;padding:2px 4px}pre{padding:12px;overflow:auto}</style></head><body><h1>iter_3 OOS CAGR Analysis</h1><p>The primary metric is locked out-of-sample CAGR. DBMF excess return is a diagnostic guardrail.</p><h2>Implemented</h2><ul><li>Unified rationale/results TSV ledger.</li><li>Public dataset registry and iter_3-isolated cache root.</li><li>FOMC parser and lagged text features.</li><li>Train/validation/OOS backtest metrics and OOS gate.</li><li>Rationale-backed FOMC tone overlay in <code>train.py</code>.</li></ul><h2>Verification</h2><pre>uv run pytest -q
+uv run mypy .
+uv run ruff check .
+uv run train.py &gt; run.log 2&gt;&amp;1</pre></body></html>

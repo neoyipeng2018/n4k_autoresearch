@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iter_3 Implementation Plan: Public Alternative Data + Rationale-Gated OOS CAGR</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#111827; --panel2:#0f172a; --text:#e5e7eb; --muted:#94a3b8; --line:#334155; --accent:#38bdf8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --code:#020617; }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height:1.55; }
+    main { max-width:1100px; margin:0 auto; padding:42px 22px 80px; }
+    h1 { font-size:2.15rem; letter-spacing:-0.035em; line-height:1.1; margin:0 0 12px; }
+    h2 { margin:36px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--line); font-size:1.38rem; }
+    h3 { margin:26px 0 8px; font-size:1.08rem; color:#f8fafc; }
+    p, li { color:#dbe3ef; }
+    .lede { color:#cbd5e1; font-size:1.06rem; max-width:920px; }
+    .callout { border:1px solid var(--line); background:linear-gradient(180deg, var(--panel), var(--panel2)); border-radius:14px; padding:15px 17px; margin:18px 0; }
+    .warn { border-left:4px solid var(--warn); }
+    .good { border-left:4px solid var(--good); }
+    .bad { border-left:4px solid var(--bad); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:18px 0; }
+    .card { border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:var(--panel2); }
+    .card b { color:#f8fafc; }
+    code { background:var(--code); border:1px solid #1e293b; border-radius:6px; padding:2px 5px; color:#dbeafe; }
+    pre { background:var(--code); border:1px solid #1e293b; border-radius:10px; padding:14px; overflow:auto; color:#dbeafe; font-size:.9rem; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:.93rem; }
+    th, td { border-bottom:1px solid #273449; text-align:left; vertical-align:top; padding:9px 8px; }
+    th { color:#bfdbfe; }
+    .small { color:var(--muted); font-size:.9rem; }
+    .tag { display:inline-block; border:1px solid #2563eb; color:#bfdbfe; border-radius:999px; padding:1px 8px; font-size:.82rem; margin-right:5px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>iter_3 Implementation Plan: Public Alternative Data + Rationale-Gated OOS CAGR</h1>
+  <p class="lede"><strong>Goal:</strong> create <code>iter_3/</code> as the next autonomous macro research repo, extending <code>iter_2</code> from daily ETF adjusted closes into point-in-time public-domain alternative datasets—especially text—while requiring every tested idea to carry an explicit economic / academic / behavioral rationale and optimizing for out-of-sample CAGR.</p>
+
+  <div class="callout warn">
+    <strong>Explicit product stance:</strong> <code>program.md</code> should state that this system <em>is dispensing financial advice</em> and that the research objective is to maximize <strong>out-of-sample CAGR</strong>. CAGR remains the target metric; DBMF excess CAGR is a required diagnostic, not the primary objective. Because of that, <code>iter_3</code> must add stronger evidence, validation, audit trails, and risk notes than <code>iter_2</code>.
+  </div>
+
+  <h2>1. Target architecture</h2>
+  <p><code>iter_3</code> should keep the successful simplicity of <code>iter_2</code> but add a data layer, feature layer, idea registry, and OOS evaluation layer.</p>
+  <pre>iter_3/
+  README.md
+  program.md
+  pyproject.toml
+  prepare.py                     # fixed engine: data loading, joins, OOS backtest, metrics
+  train.py                       # editable strategy idea only
+  datasets/
+    registry.py                  # dataset specs and point-in-time rules
+    ingest_prices.py             # Yahoo adjusted-close ingestion
+    ingest_fomc.py               # Fed FOMC statements/minutes/speeches text
+    ingest_beige_book.py         # Federal Reserve Beige Book text
+    ingest_sec.py                # SEC EDGAR company filing text / metadata
+    ingest_fred.py               # optional macro numeric public data
+    text_features.py             # text cleaning, lexicons, scoring, lagging
+  ideas/
+    schema.py                    # dataclass + validation for idea rationale
+  tests/
+    test_prepare.py
+    test_datasets.py
+    test_text_features.py
+    test_idea_schema.py
+    test_oos.py
+  results.tsv                    # local human-viewable ledger: performance + rationale; ignored unless requested
+  run.log                        # local run output
+  plan.html</pre>
+
+  <div class="grid">
+    <div class="card"><b>Fixed files</b><br><span class="small"><code>prepare.py</code>, <code>datasets/*</code>, <code>ideas/schema.py</code>: stable research infrastructure.</span></div>
+    <div class="card"><b>Editable file</b><br><span class="small"><code>train.py</code>: one strategy idea at a time, including rationale metadata.</span></div>
+    <div class="card"><b>Local artifacts</b><br><span class="small"><code>results.tsv</code>, <code>run.log</code>, caches under <code>~/.cache/macroresearch/iter_3/</code>.</span></div>
+    <div class="card"><b>Primary metric</b><br><span class="small">Out-of-sample CAGR after idea-rationale gate; excess CAGR versus DBMF is diagnostic.</span></div>
+  </div>
+
+  <h2>2. Public-domain / public alternative datasets to add</h2>
+  <p>Prioritize datasets with clear timestamps, permissive public access, and economic interpretability. Text should be converted into <em>lagged</em> features so a strategy never sees text before publication.</p>
+
+  <table>
+    <tr><th>Dataset</th><th>Why useful</th><th>Feature ideas</th><th>Point-in-time caveats</th></tr>
+    <tr><td>Federal Reserve FOMC statements / minutes / speeches</td><td>Central-bank tone drives rates, USD, gold, equities, credit.</td><td>Hawkish-minus-dovish lexicon score; uncertainty score; change in tone vs prior meeting; topic counts for inflation/growth/labor.</td><td>Use publication timestamp/date. Minutes are delayed; never align minutes to meeting date.</td></tr>
+    <tr><td>Federal Reserve Beige Book</td><td>Regional anecdotal growth / inflation / labor text.</td><td>Growth sentiment, inflation pressure, labor tightness, regional diffusion index.</td><td>Use release date only; text summarizes prior period but is known only at publication.</td></tr>
+    <tr><td>SEC EDGAR filings</td><td>Public company risk-factor and management language can proxy sector stress or optimism.</td><td>Risk-factor negativity; uncertainty; sector-level aggregate changes for QQQ/XLK/XLE/XBI proxies.</td><td>Use EDGAR filing acceptance datetime; aggregate only filings available by rebalance date.</td></tr>
+    <tr><td>White House / Treasury / BLS / BEA press releases</td><td>Policy and macro releases can move inflation/rates/risk assets.</td><td>Policy uncertainty terms; fiscal/energy/geopolitical topic counts.</td><td>Respect release dates and revisions; for revised numeric data, store vintage if possible.</td></tr>
+    <tr><td>FRED / ALFRED numeric macro data</td><td>Complements text with rates, spreads, inflation, dollar, labor, growth.</td><td>Yield-curve slope, credit spreads, inflation surprises, real-rate proxies.</td><td>Use ALFRED vintages when available; otherwise mark as non-vintage and lower confidence.</td></tr>
+    <tr><td>GDELT / Media Cloud-like open news metadata</td><td>Broad public news tone / volume. Useful for attention and fear proxies.</td><td>Macro news volume, tone, country/topic attention, crisis intensity.</td><td>Licensing and endpoint stability need review; headlines may not be public domain even when metadata is open.</td></tr>
+  </table>
+
+  <h2>3. Rationale gate: every idea must explain why it should work</h2>
+  <p>To reduce pure data mining, every experiment must include a rationale that is both <strong>machine-validated</strong> and <strong>human-viewable</strong>. Store the rationale directly in the main <code>results.tsv</code> row for the run, rather than splitting performance into one TSV and rationale into another. This keeps the human audit trail in a single spreadsheet-friendly file: every row shows both <em>what was tested</em>, <em>why it was tested</em>, and <em>how it performed</em>. The Python <code>IdeaRationale</code> object in <code>train.py</code> should still be validated before execution, but its fields should be exported into the same <code>results.tsv</code> row as the OOS metrics. The backtest should refuse to run if the idea lacks a rationale, evidence category, expected mechanism, OOS hypothesis, and falsification criteria.</p>
+
+  <h3>Human-viewable unified ledger: <code>results.tsv</code></h3>
+  <p>Use TSV rather than JSON as the primary audit artifact because it is diffable, spreadsheet-friendly, and easy for the human user to scan. Keep long fields concise but complete; use semicolon-separated lists for datasets, assets, and references. <code>results.tsv</code> is append-only: each experiment gets one row containing both rationale fields and result fields.</p>
+  <pre><code>commit	timestamp_utc	idea_id	title	evidence_type	mechanism	expected_assets	feature_inputs	oos_hypothesis	falsification	references	human_notes	train_cagr	validation_cagr	oos_cagr	benchmark_oos_cagr	excess_oos_cagr_vs_dbmf	ruined	status	description
+fomc_hawkish_gold_rates_001	2026-05-28T00:00:00Z	fomc_hawkish_gold_rates_001	Fed hawkishness shifts allocation from duration to cash/commodities	policy_transmission	Unexpectedly hawkish Fed language raises expected real rates, hurts long-duration assets, and may support cash-like holdings.	TLT;QQQ;GLD;SGOV	fomc_statement_text;fomc_minutes_text;price_momentum_21d	Lagged hawkish-minus-dovish tone improves OOS CAGR versus price-only momentum; excess CAGR versus DBMF should remain positive.	Reject if OOS CAGR does not improve, if excess CAGR versus DBMF is negative, or if improvement exists only in train.	Bernanke and Kuttner 2005;Loughran-McDonald lexicon	Initial public-text signal candidate.	0.01	0.02	0.015	0.12	0.09	false	proposed	Initial public-text signal candidate.</code></pre>
+
+  <h3>Suggested idea schema</h3>
+  <pre><code>from dataclasses import dataclass
+from typing import Literal
+
+EvidenceType = Literal[
+    "economic_intuition",
+    "academic_literature",
+    "behavioral_finance",
+    "market_microstructure",
+    "policy_transmission",
+    "replication_of_known_anomaly",
+]
+
+@dataclass(frozen=True)
+class IdeaRationale:
+    idea_id: str
+    title: str
+    evidence_type: EvidenceType
+    mechanism: str              # why the signal should forecast returns
+    expected_assets: list[str]   # ETFs / asset classes affected
+    feature_inputs: list[str]    # datasets/features used
+    oos_hypothesis: str          # what should hold out of sample
+    falsification: str           # what result would invalidate it
+    references: list[str]        # papers, books, policy docs, URLs
+
+    def validate(self) -> None:
+        required = [self.idea_id, self.title, self.mechanism, self.oos_hypothesis, self.falsification]
+        if any(not str(x).strip() for x in required):
+            raise ValueError("IdeaRationale is incomplete")
+        if len(self.references) == 0:
+            raise ValueError("At least one reference or source note is required")
+</code></pre>
+
+  <h3>Example in <code>train.py</code></h3>
+  <pre><code>from ideas.schema import IdeaRationale
+
+IDEA = IdeaRationale(
+    idea_id="fomc_hawkish_gold_rates_001",
+    title="Fed hawkishness shifts allocation from duration to cash/commodities",
+    evidence_type="policy_transmission",
+    mechanism=(
+        "Unexpectedly hawkish Fed language raises expected real rates, hurts long-duration "
+        "assets, and may support cash-like holdings; dovish shifts can support TLT/QQQ."
+    ),
+    expected_assets=["TLT", "QQQ", "GLD", "SGOV"],
+    feature_inputs=["fomc_statement_text", "fomc_minutes_text", "price_momentum_21d"],
+    oos_hypothesis="A lagged hawkish-minus-dovish tone score improves OOS CAGR versus price-only momentum.",
+    falsification="Reject if OOS CAGR does not improve, excess CAGR versus DBMF is negative, or improvement exists only in the train window.",
+    references=[
+        "Bernanke and Kuttner (2005), What Explains the Stock Market's Reaction to Federal Reserve Policy?",
+        "Loughran-McDonald financial sentiment lexicons",
+    ],
+)
+</code></pre>
+
+  <h2>4. OOS-first evaluation design</h2>
+  <p><code>iter_2</code> optimized one matched historical window. <code>iter_3</code> should report in-sample diagnostics but decide keep/discard on OOS CAGR, with excess CAGR versus DBMF as a diagnostic guardrail.</p>
+
+  <h3>Recommended default split</h3>
+  <ul>
+    <li><strong>Warmup:</strong> earliest data through 2019, used only to compute initial lookbacks/features.</li>
+    <li><strong>Development / train:</strong> 2020-01-01 through 2022-12-31.</li>
+    <li><strong>Validation:</strong> 2023-01-01 through 2024-12-31.</li>
+    <li><strong>Locked OOS:</strong> 2025-01-01 onward. This is the primary keep/discard criterion.</li>
+  </ul>
+  <p>Also add walk-forward folds so a strategy cannot win by one lucky split.</p>
+
+  <pre><code>@dataclass(frozen=True)
+class EvaluationSplit:
+    name: str
+    start: str
+    end: str | None
+    role: Literal["warmup", "train", "validation", "oos"]
+
+DEFAULT_SPLITS = [
+    EvaluationSplit("warmup", "2018-01-01", "2019-12-31", "warmup"),
+    EvaluationSplit("train", "2020-01-01", "2022-12-31", "train"),
+    EvaluationSplit("validation", "2023-01-01", "2024-12-31", "validation"),
+    EvaluationSplit("locked_oos", "2025-01-01", None, "oos"),
+]
+
+@dataclass(frozen=True)
+class OOSResult:
+    train_cagr: float
+    validation_cagr: float
+    oos_cagr: float
+    benchmark_oos_cagr: float
+    excess_oos_cagr_vs_dbmf: float
+    ruined: bool
+    passed: bool
+</code></pre>
+
+  <h3>Keep/discard rule</h3>
+  <pre><code>def passes_oos_gate(result: OOSResult, previous_best_oos_cagr: float) -&gt; bool:
+    if result.ruined:
+        return False
+    if result.oos_cagr &lt;= previous_best_oos_cagr:
+        return False
+    if result.excess_oos_cagr_vs_dbmf &lt;= 0.0:
+        return False
+    if result.validation_cagr &lt;= 0.0:
+        return False
+    # Optional robustness guard: OOS CAGR should not be tiny relative to train CAGR.
+    if result.train_cagr &gt; 0 and result.oos_cagr &lt; 0.25 * result.train_cagr:
+        return False
+    return True
+</code></pre>
+
+  <h2>5. Data and feature implementation plan</h2>
+
+  <h3>Task 1: Bootstrap <code>iter_3</code> from <code>iter_2</code></h3>
+  <p><strong>Objective:</strong> copy the stable workflow, then update names/docs for the OOS-CAGR objective.</p>
+  <pre><code>rsync -a --exclude='.venv' --exclude='.mypy_cache' --exclude='.ruff_cache' \
+  --exclude='.pytest_cache' --exclude='__pycache__' --exclude='results.tsv' \
+  --exclude='run.log' iter_2/ iter_3/</code></pre>
+  <p>Then edit <code>iter_3/README.md</code> and <code>iter_3/program.md</code>. Make <code>program.md</code> explicit:</p>
+  <pre><code># Autonomous financial-advice macro CAGR research
+
+This program IS dispensing financial advice. Its purpose is to research,
+test, and rank strategies intended to maximize out-of-sample CAGR after
+reasonable validation. Excess CAGR versus DBMF is a diagnostic comparison,
+not the primary ranking metric.
+
+Every idea must include a rationale grounded in economic intuition,
+academic literature, behavioral finance, policy transmission, or another
+explicit non-data-mining mechanism.</code></pre>
+
+  <h3>Task 2: Add dependency support for text processing</h3>
+  <p>Keep dependencies lightweight and reproducible.</p>
+  <pre><code>[project]
+dependencies = [
+    "beautifulsoup4&gt;=4.12.0",
+    "lxml&gt;=5.0.0",
+    "matplotlib&gt;=3.10.0",
+    "numpy&gt;=2.2.0",
+    "pandas&gt;=2.2.0",
+    "requests&gt;=2.32.0",
+]
+</code></pre>
+  <p>Do not add LLM APIs or paid data in the first implementation. Start with deterministic lexicons and counts.</p>
+
+  <h3>Task 3: Create a dataset registry</h3>
+  <p><strong>Objective:</strong> each dataset declares license/source, timestamp column, update cadence, and whether it is point-in-time safe.</p>
+  <pre><code>from dataclasses import dataclass
+from typing import Literal
+
+DatasetKind = Literal["price", "text", "numeric_macro"]
+
+@dataclass(frozen=True)
+class DatasetSpec:
+    name: str
+    kind: DatasetKind
+    source_url: str
+    cache_subdir: str
+    timestamp_column: str
+    point_in_time_safe: bool
+    license_note: str
+    description: str
+
+DATASETS = {
+    "fomc_text": DatasetSpec(
+        name="fomc_text",
+        kind="text",
+        source_url="https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+        cache_subdir="text/fomc",
+        timestamp_column="published_at",
+        point_in_time_safe=True,
+        license_note="US Federal Reserve public website; verify reuse terms.",
+        description="FOMC statements/minutes and related monetary policy text.",
+    ),
+}
+</code></pre>
+
+  <h3>Task 4: Implement text event storage format</h3>
+  <p>Use one normalized events table per text source:</p>
+  <pre><code>date,published_at,source,doc_type,title,url,text_sha256,text
+2025-05-07,2025-05-07T18:00:00Z,Federal Reserve,FOMC statement,...</code></pre>
+  <p>Store raw text plus hash so changes are auditable. Features are derived into separate CSVs, never hand-edited.</p>
+
+  <h3>Task 5: Add deterministic text features</h3>
+  <p>Start with transparent lexicons. Later versions can add embeddings/topic models, but only after the baseline is testable.</p>
+  <pre><code>HAWKISH = {"inflation", "tightening", "restrictive", "hike", "overheating"}
+DOVISH = {"unemployment", "slowdown", "accommodative", "cut", "weakness"}
+UNCERTAINTY = {"uncertain", "risk", "volatility", "fragile", "stress"}
+
+def tokenize(text: str) -&gt; list[str]:
+    return [t.lower() for t in re.findall(r"[A-Za-z][A-Za-z-]+", text)]
+
+def lexicon_score(text: str, positive: set[str], negative: set[str]) -&gt; float:
+    tokens = tokenize(text)
+    if not tokens:
+        return 0.0
+    pos = sum(t in positive for t in tokens)
+    neg = sum(t in negative for t in tokens)
+    return (pos - neg) / max(len(tokens), 1)
+
+def build_fomc_features(events: pd.DataFrame) -&gt; pd.DataFrame:
+    rows = []
+    for _, row in events.iterrows():
+        text = str(row["text"])
+        rows.append({
+            "published_at": row["published_at"],
+            "hawkish_minus_dovish": lexicon_score(text, HAWKISH, DOVISH),
+            "uncertainty_share": len([t for t in tokenize(text) if t in UNCERTAINTY]) / max(len(tokenize(text)), 1),
+            "token_count": len(tokenize(text)),
+        })
+    return pd.DataFrame(rows).sort_values("published_at")
+</code></pre>
+
+  <h3>Task 6: Join features to trading dates without lookahead</h3>
+  <p>All event features must be lagged to the next available trading day after publication. Monthly selectors should only see features published on or before the signal day.</p>
+  <pre><code>def align_event_features_to_prices(
+    prices: pd.DataFrame,
+    events: pd.DataFrame,
+    published_col: str = "published_at",
+) -&gt; pd.DataFrame:
+    trading_days = pd.DataFrame({"date": prices.index})
+    features = events.copy()
+    features["published_at"] = pd.to_datetime(features[published_col], utc=True).dt.tz_localize(None)
+    features["date"] = features["published_at"].dt.normalize()
+    features = features.sort_values("date")
+    aligned = pd.merge_asof(
+        trading_days.sort_values("date"),
+        features.sort_values("date"),
+        on="date",
+        direction="backward",
+    ).set_index("date")
+    return aligned.ffill()
+</code></pre>
+
+  <h2>6. Strategy API changes</h2>
+  <p>Change <code>select_weights</code> to receive both price history and feature history. This keeps <code>train.py</code> expressive while the engine controls point-in-time slicing.</p>
+  <pre><code>class WeightSelector(Protocol):
+    def __call__(
+        self,
+        day: pd.Timestamp,
+        prices: pd.DataFrame,
+        features: pd.DataFrame,
+        idea: IdeaRationale,
+    ) -&gt; dict[str, float]: ...
+
+# prepare.py monthly loop
+history_prices = prices.loc[:previous_day, tradable]
+history_features = features.loc[:previous_day]
+current_weights = validate_weights(
+    select_weights(previous_day, history_prices, history_features, idea),
+    tradable_set,
+)
+</code></pre>
+
+  <h2>7. Example text-aware strategy idea</h2>
+  <p>This is a starter example, not the only idea. It combines price momentum with Fed-tone risk control.</p>
+  <pre><code>def select_weights(day, prices, features, idea):
+    idea.validate()
+
+    # Base: current iter_2 winner, 21d top-1 thematic momentum.
+    scores = []
+    for symbol in SYMBOLS:
+        if symbol == CASH_SYMBOL or symbol not in prices.columns:
+            continue
+        mom = lookback_return(prices[symbol], 21)
+        if mom is not None:
+            scores.append((mom, symbol))
+    if not scores or max(scores)[0] &lt;= 0:
+        return {"SGOV": 1.0}
+
+    latest = features.iloc[-1] if not features.empty else None
+    hawkish = float(latest.get("hawkish_minus_dovish", 0.0)) if latest is not None else 0.0
+    uncertainty = float(latest.get("uncertainty_share", 0.0)) if latest is not None else 0.0
+
+    best_score, best_symbol = sorted(scores, reverse=True)[0]
+
+    # Financial-advice rule under test: if Fed text is very hawkish/uncertain,
+    # suppress long-duration/high-beta positions unless their momentum is very strong.
+    high_beta = {"QQQ", "XLK", "SMH", "SOXX", "XBI", "XLY"}
+    if best_symbol in high_beta and hawkish &gt; 0.002 and uncertainty &gt; 0.01 and best_score &lt; 0.04:
+        return {"SGOV": 1.0}
+
+    return {best_symbol: 1.0}
+</code></pre>
+
+  <h2>8. Results ledger changes</h2>
+  <p>Expand <code>results.tsv</code> so rationale, evidence, OOS hypothesis, falsification rule, and OOS performance are first-class fields in a single human-viewable ledger.</p>
+  <pre><code>commit	timestamp_utc	idea_id	title	evidence_type	mechanism	expected_assets	feature_inputs	oos_hypothesis	falsification	references	human_notes	train_cagr	validation_cagr	oos_cagr	benchmark_oos_cagr	excess_oos_cagr_vs_dbmf	ruined	status	description</code></pre>
+  <p><strong>Why one TSV:</strong> keeping rationale and results together avoids split-brain audit trails. A human should be able to sort/filter <code>results.tsv</code> and immediately see whether a run was economically motivated, what data it used, what would falsify it, and whether it produced OOS CAGR and positive excess CAGR versus DBMF.</p>
+  <p>Status values:</p>
+  <ul>
+    <li><code>keep</code>: valid rationale, non-ruined, valid validation CAGR, positive OOS CAGR, positive OOS excess CAGR versus DBMF, and improves best OOS CAGR.</li>
+    <li><code>discard</code>: ran successfully but failed the gate or did not improve best OOS CAGR.</li>
+    <li><code>invalid_rationale</code>: missing or weak rationale; do not run or rank.</li>
+    <li><code>crash</code>: code/data failure.</li>
+  </ul>
+
+  <h2>9. Analysis notebook requirements</h2>
+  <p><code>analysis.ipynb</code> should become an audit notebook, not just a performance plot. It should read the unified <code>results.tsv</code> and answer whether the research process is respecting the rationale gate before analyzing OOS CAGR.</p>
+
+  <h3>Required notebook sections</h3>
+  <ul>
+    <li><strong>Rationale coverage:</strong> count runs with missing <code>idea_id</code>, missing references, or blank mechanism/falsification fields in <code>results.tsv</code>.</li>
+    <li><strong>Evidence mix:</strong> plot results by <code>evidence_type</code> such as economic intuition, academic literature, behavioral finance, and policy transmission.</li>
+    <li><strong>Dataset mix:</strong> summarize which public datasets/features are being tested and whether text features are improving OOS CAGR.</li>
+    <li><strong>Rationale vs performance:</strong> compare OOS CAGR distributions by rationale category; flag categories that look data-mined or consistently fail.</li>
+    <li><strong>Gate failures:</strong> produce a human-readable table of rejected/invalid ideas and the reason they failed the rationale or OOS gate.</li>
+    <li><strong>OOS frontier:</strong> plot the running best <code>oos_cagr</code> among valid-rationale ideas only, with invalid-rationale ideas shown separately.</li>
+  </ul>
+
+  <h3>Notebook code snippet</h3>
+  <pre><code>import pandas as pd
+
+results = pd.read_csv("results.tsv", sep="\t")
+
+required_cols = ["idea_id", "mechanism", "oos_hypothesis", "falsification", "references", "evidence_type"]
+for col in required_cols:
+    results[f"missing_{col}"] = results[col].isna() | (results[col].astype(str).str.strip() == "")
+
+results["rationale_valid_for_analysis"] = ~results[
+    [f"missing_{col}" for col in required_cols]
+].any(axis=1)
+
+print("Rationale gate coverage")
+print(results["rationale_valid_for_analysis"].value_counts(dropna=False))
+
+invalid = results[~results["rationale_valid_for_analysis"]][
+    ["idea_id", "status", "description", *[f"missing_{c}" for c in required_cols]]
+]
+display(invalid)
+
+valid = results[results["rationale_valid_for_analysis"]].copy()
+summary = valid.groupby("evidence_type").agg(
+    ideas=("idea_id", "count"),
+    median_oos_cagr=("oos_cagr", "median"),
+    best_oos_cagr=("oos_cagr", "max"),
+    keep_rate=("status", lambda s: (s == "keep").mean()),
+).sort_values("best_oos_cagr", ascending=False)
+display(summary)
+</code></pre>
+
+  <h2>10. Testing plan</h2>
+  <table>
+    <tr><th>Test file</th><th>Key tests</th></tr>
+    <tr><td><code>tests/test_idea_schema.py</code></td><td>Reject blank mechanism, missing references, missing falsification; accept complete rationale.</td></tr>
+    <tr><td><code>tests/test_text_features.py</code></td><td>Tokenization, lexicon scores, empty text handling, deterministic output.</td></tr>
+    <tr><td><code>tests/test_datasets.py</code></td><td>Dataset registry has license notes, point-in-time column, and stable cache paths.</td></tr>
+    <tr><td><code>tests/test_oos.py</code></td><td>OOS split boundaries, no warmup/train leakage into OOS metrics, keep/discard gate.</td></tr>
+    <tr><td><code>tests/test_prepare.py</code></td><td>Monthly selector receives only prior-day prices/features; DBMF benchmark remains matched-window.</td></tr>
+  </table>
+
+  <pre><code>def test_idea_requires_non_data_mining_rationale():
+    idea = IdeaRationale(
+        idea_id="bad",
+        title="",
+        evidence_type="economic_intuition",
+        mechanism="",
+        expected_assets=[],
+        feature_inputs=[],
+        oos_hypothesis="",
+        falsification="",
+        references=[],
+    )
+    with pytest.raises(ValueError):
+        idea.validate()
+
+
+def test_event_features_do_not_look_ahead():
+    prices = pd.DataFrame(index=pd.to_datetime(["2024-01-02", "2024-01-03", "2024-01-04"]))
+    events = pd.DataFrame({
+        "published_at": ["2024-01-03T20:00:00Z"],
+        "hawkish_minus_dovish": [0.5],
+    })
+    aligned = align_event_features_to_prices(prices, events)
+    assert pd.isna(aligned.loc["2024-01-02", "hawkish_minus_dovish"])
+    assert aligned.loc["2024-01-04", "hawkish_minus_dovish"] == 0.5
+</code></pre>
+
+  <h2>10. Implementation sequence</h2>
+  <ol>
+    <li>Copy <code>iter_2</code> into <code>iter_3</code> excluding local caches/results.</li>
+    <li>Update <code>README.md</code> and <code>program.md</code> for financial-advice / OOS-CAGR objective.</li>
+    <li>Add <code>ideas/schema.py</code> and rationale tests. The schema validates the idea and exports its fields into the unified <code>results.tsv</code> row.</li>
+    <li>Add <code>datasets/registry.py</code> and registry tests.</li>
+    <li>Add text-feature utilities and tests.</li>
+    <li>Add one text ingester first: FOMC text. Do not start with five ingesters.</li>
+    <li>Modify <code>prepare.py</code> so <code>run_backtest</code> accepts a feature frame and idea rationale.</li>
+    <li>Add OOS split metrics and keep/discard gate.</li>
+    <li>Modify <code>train.py</code> to include <code>IDEA</code> and a baseline price-only strategy using the new API.</li>
+    <li>Add one text-aware strategy example and compare against the price-only baseline.</li>
+    <li>Update <code>analysis.ipynb</code> to plot the OOS CAGR frontier, not just the CAGR frontier, and to explicitly analyze rationale-gate fields in <code>results.tsv</code>.</li>
+  </ol>
+
+  <h2>11. Detailed TODO list</h2>
+  <p>This is the execution checklist for implementing <code>iter_3</code>. It is intentionally detailed so implementation can proceed phase-by-phase without guessing. Do not skip validation tasks: the core goal is not merely to add data, but to make rationale-gated OOS-CAGR research auditable.</p>
+
+  <h3>Phase 0 — Safety, scope, and repository hygiene</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Confirm no implementation work has already been started in <code>iter_3</code> beyond <code>plan.html</code>.</li>
+    <li><input type="checkbox" disabled checked> Record current git status so existing unrelated user changes are not overwritten.</li>
+    <li><input type="checkbox" disabled checked> Decide which files from <code>iter_2</code> should be copied and which local artifacts must stay excluded.</li>
+    <li><input type="checkbox" disabled checked> Exclude local caches: <code>.venv/</code>, <code>.pytest_cache/</code>, <code>.mypy_cache/</code>, <code>.ruff_cache/</code>, <code>__pycache__/</code>, <code>run.log</code>, and old <code>results.tsv</code>.</li>
+    <li><input type="checkbox" disabled checked> Create a clean first commit for the copied <code>iter_3</code> scaffold once implementation begins.</li>
+  </ul>
+
+  <h3>Phase 1 — Bootstrap <code>iter_3</code> from <code>iter_2</code></h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Copy <code>iter_2/README.md</code>, <code>program.md</code>, <code>prepare.py</code>, <code>train.py</code>, <code>pyproject.toml</code>, <code>analysis.ipynb</code>, <code>scripts/</code>, and <code>tests/</code> into <code>iter_3/</code>.</li>
+    <li><input type="checkbox" disabled checked> Rename descriptions from maximum in-sample CAGR to rationale-gated OOS-CAGR research.</li>
+    <li><input type="checkbox" disabled checked> Update <code>.gitignore</code> to include text-data cache outputs, generated features, notebooks, and local logs as appropriate.</li>
+    <li><input type="checkbox" disabled checked> Run the inherited price-only workflow once to ensure the copied repo still works before changes.</li>
+    <li><input type="checkbox" disabled checked> Preserve a baseline result that reproduces the current <code>iter_2</code> best strategy for comparison.</li>
+  </ul>
+
+  <h3>Phase 2 — Rewrite human-facing docs and operating instructions</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Update <code>README.md</code> with the new architecture: prices, public alternative data, text features, rationale gate, OOS evaluation, and unified <code>results.tsv</code>.</li>
+    <li><input type="checkbox" disabled checked> Update <code>program.md</code> to explicitly state that the system <strong>is dispensing financial advice</strong>.</li>
+    <li><input type="checkbox" disabled checked> State in <code>program.md</code> that the objective is to maximize <strong>out-of-sample CAGR</strong>; excess CAGR versus DBMF is diagnostic.</li>
+    <li><input type="checkbox" disabled checked> Add rules requiring every idea to include economic intuition, academic evidence, behavioral-finance rationale, policy-transmission logic, or another explicit non-data-mining mechanism.</li>
+    <li><input type="checkbox" disabled checked> Add rules that missing rationale, missing references, or missing falsification criteria make a run invalid for ranking.</li>
+    <li><input type="checkbox" disabled checked> Document that <code>results.tsv</code> is the single human-viewable performance+rationale ledger.</li>
+  </ul>
+
+  <h3>Phase 3 — Define the unified <code>results.tsv</code> schema</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Finalize required rationale columns: <code>idea_id</code>, <code>title</code>, <code>evidence_type</code>, <code>mechanism</code>, <code>expected_assets</code>, <code>feature_inputs</code>, <code>oos_hypothesis</code>, <code>falsification</code>, <code>references</code>, and <code>human_notes</code>.</li>
+    <li><input type="checkbox" disabled checked> Finalize required result columns: <code>commit</code>, <code>timestamp_utc</code>, <code>train_cagr</code>, <code>validation_cagr</code>, <code>oos_cagr</code>, <code>benchmark_oos_cagr</code>, <code>excess_oos_cagr_vs_dbmf</code>, <code>ruined</code>, <code>status</code>, and <code>description</code>.</li>
+    <li><input type="checkbox" disabled checked> Decide canonical delimiter behavior for list-like fields: semicolon-separated values inside a TSV field.</li>
+    <li><input type="checkbox" disabled checked> Create a helper that writes the header if <code>results.tsv</code> is missing.</li>
+    <li><input type="checkbox" disabled checked> Create a helper that appends exactly one row per run after validation and evaluation.</li>
+    <li><input type="checkbox" disabled checked> Add tests that reject malformed rows, missing required fields, and unknown status values.</li>
+  </ul>
+
+  <h3>Phase 4 — Implement <code>IdeaRationale</code> validation</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Create <code>ideas/schema.py</code> with <code>IdeaRationale</code> and allowed <code>EvidenceType</code> values.</li>
+    <li><input type="checkbox" disabled checked> Add <code>validate()</code> checks for non-empty mechanism, OOS hypothesis, falsification, references, expected assets, and feature inputs.</li>
+    <li><input type="checkbox" disabled checked> Add <code>to_results_fields()</code> so rationale fields can be exported into <code>results.tsv</code>.</li>
+    <li><input type="checkbox" disabled checked> Add tests for a valid idea card.</li>
+    <li><input type="checkbox" disabled checked> Add tests for missing references, blank mechanism, blank falsification, blank OOS hypothesis, and unknown evidence type.</li>
+    <li><input type="checkbox" disabled checked> Make <code>train.py</code> define a module-level <code>IDEA</code> object for every experiment.</li>
+    <li><input type="checkbox" disabled checked> Make the run fail fast before backtesting if <code>IDEA.validate()</code> fails.</li>
+  </ul>
+
+  <h3>Phase 5 — Build dataset registry and cache layout</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Create <code>datasets/registry.py</code> with <code>DatasetSpec</code>.</li>
+    <li><input type="checkbox" disabled checked> Include dataset fields for name, kind, source URL, cache subdir, timestamp column, point-in-time safety, license note, and description.</li>
+    <li><input type="checkbox" disabled checked> Register existing Yahoo adjusted-close prices as the baseline price dataset.</li>
+    <li><input type="checkbox" disabled checked> Register FOMC text as the first public text dataset.</li>
+    <li><input type="checkbox" disabled checked> Add placeholder specs for Beige Book, SEC EDGAR, FRED/ALFRED, and public news metadata, but do not implement all ingesters at once.</li>
+    <li><input type="checkbox" disabled checked> Set cache root to <code>~/.cache/macroresearch/iter_3/</code> to avoid collisions with <code>iter_2</code>.</li>
+    <li><input type="checkbox" disabled checked> Add tests that every dataset has a source URL, license note, timestamp column, and point-in-time safety declaration.</li>
+  </ul>
+
+  <h3>Phase 6 — Preserve and adapt price ingestion</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Move or copy price ingestion logic into <code>datasets/ingest_prices.py</code>.</li>
+    <li><input type="checkbox" disabled checked> Keep Yahoo adjusted close behavior equivalent to <code>iter_2</code> for baseline reproducibility.</li>
+    <li><input type="checkbox" disabled checked> Write price cache files under the new <code>iter_3</code> cache root.</li>
+    <li><input type="checkbox" disabled checked> Preserve DBMF as the required benchmark baseline.</li>
+    <li><input type="checkbox" disabled checked> Add tests for cached price reading, fallback behavior, missing DBMF handling, and matched-window DBMF alignment.</li>
+  </ul>
+
+  <h3>Phase 7 — Implement the first text dataset: FOMC</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Create <code>datasets/ingest_fomc.py</code>.</li>
+    <li><input type="checkbox" disabled checked> Identify stable Federal Reserve source pages for FOMC statements and minutes.</li>
+    <li><input type="checkbox" disabled checked> Parse publication dates and URLs into a normalized event table.</li>
+    <li><input type="checkbox" disabled checked> Fetch and clean raw text while preserving enough metadata to audit source and timestamp.</li>
+    <li><input type="checkbox" disabled checked> Store raw event rows with <code>published_at</code>, <code>doc_type</code>, <code>title</code>, <code>url</code>, <code>text_sha256</code>, and <code>text</code>.</li>
+    <li><input type="checkbox" disabled checked> Ensure FOMC minutes use minutes publication date, not meeting date.</li>
+    <li><input type="checkbox" disabled checked> Add tests using small local fixture HTML/text so tests do not depend on live network calls.</li>
+    <li><input type="checkbox" disabled checked> Add a command-line entry point that writes the normalized FOMC event CSV.</li>
+  </ul>
+
+  <h3>Phase 8 — Implement deterministic text features</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Create <code>datasets/text_features.py</code>.</li>
+    <li><input type="checkbox" disabled checked> Implement deterministic tokenization and text normalization.</li>
+    <li><input type="checkbox" disabled checked> Define initial transparent lexicons for hawkish, dovish, uncertainty, inflation, growth, and labor terms.</li>
+    <li><input type="checkbox" disabled checked> Implement <code>lexicon_score()</code> with stable behavior for empty text.</li>
+    <li><input type="checkbox" disabled checked> Implement <code>build_fomc_features()</code> producing event-level scores.</li>
+    <li><input type="checkbox" disabled checked> Add feature metadata fields: source dataset, feature version, lexicon version, and generated timestamp.</li>
+    <li><input type="checkbox" disabled checked> Add tests for tokenization, score direction, empty text, punctuation, casing, and deterministic repeatability.</li>
+  </ul>
+
+  <h3>Phase 9 — Point-in-time alignment and no-lookahead controls</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Implement <code>align_event_features_to_prices()</code> to align text events to trading dates.</li>
+    <li><input type="checkbox" disabled checked> Ensure events published after market close are not usable until the next trading day if timestamp granularity is available.</li>
+    <li><input type="checkbox" disabled checked> Forward-fill feature values only after the publication date.</li>
+    <li><input type="checkbox" disabled checked> Add tests proving a feature is unavailable before publication and available afterward.</li>
+    <li><input type="checkbox" disabled checked> Add tests proving monthly strategy selection only receives features through the prior signal day.</li>
+    <li><input type="checkbox" disabled checked> Add an explicit warning or metadata flag for datasets that are not vintage-safe.</li>
+  </ul>
+
+  <h3>Phase 10 — Update backtest API for features and rationales</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Update <code>WeightSelector</code> protocol so selectors receive <code>day</code>, price history, feature history, and the <code>IdeaRationale</code>.</li>
+    <li><input type="checkbox" disabled checked> Update <code>run_strategy_equity()</code> to pass point-in-time feature history into <code>select_weights</code>.</li>
+    <li><input type="checkbox" disabled checked> Update <code>run_backtest()</code> to load or accept feature frames.</li>
+    <li><input type="checkbox" disabled checked> Preserve backwards compatibility by allowing an empty feature frame for price-only strategies.</li>
+    <li><input type="checkbox" disabled checked> Update all tests and baseline strategy code to the new selector signature.</li>
+    <li><input type="checkbox" disabled checked> Add tests proving no lookahead in both prices and features.</li>
+  </ul>
+
+  <h3>Phase 11 — Add OOS splits and CAGR metrics</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Define default warmup, train, validation, and locked OOS split dates.</li>
+    <li><input type="checkbox" disabled checked> Implement split-aware metric calculation for strategy and benchmark returns.</li>
+    <li><input type="checkbox" disabled checked> Define excess CAGR versus DBMF as strategy CAGR minus benchmark CAGR over the same split.</li>
+    <li><input type="checkbox" disabled checked> Report train CAGR, validation CAGR, OOS CAGR, benchmark OOS CAGR, excess OOS CAGR versus DBMF, and ruin status.</li>
+    <li><input type="checkbox" disabled checked> Implement <code>passes_oos_gate()</code>.</li>
+    <li><input type="checkbox" disabled checked> Add tests for improved/non-improved OOS CAGR, negative excess CAGR versus DBMF, ruined strategies, weak OOS relative to train, and validation failure.</li>
+    <li><input type="checkbox" disabled checked> Consider adding walk-forward folds after the first fixed split works.</li>
+  </ul>
+
+  <h3>Phase 12 — Update <code>train.py</code> baseline and first text-aware idea</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Add a valid <code>IDEA</code> for the price-only baseline strategy.</li>
+    <li><input type="checkbox" disabled checked> Port the current <code>iter_2</code> best thematic 21-day top-1 strategy into the new API.</li>
+    <li><input type="checkbox" disabled checked> Verify the price-only baseline produces comparable behavior before adding text features.</li>
+    <li><input type="checkbox" disabled checked> Add a separate text-aware idea using FOMC hawkish/dovish/uncertainty features.</li>
+    <li><input type="checkbox" disabled checked> Ensure the text-aware idea has references and a falsification rule before it can run.</li>
+    <li><input type="checkbox" disabled checked> Compare the text-aware idea against the price-only baseline by OOS CAGR, not in-sample CAGR.</li>
+  </ul>
+
+  <h3>Phase 13 — Write run output and unified ledger rows</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Update <code>format_result()</code> so <code>run.log</code> includes parseable rationale and OOS fields.</li>
+    <li><input type="checkbox" disabled checked> Add <code>append_result_row()</code> for the unified <code>results.tsv</code>.</li>
+    <li><input type="checkbox" disabled checked> Ensure rejected invalid-rationale ideas can be recorded with <code>status=invalid_rationale</code> if desired, without ranking them.</li>
+    <li><input type="checkbox" disabled checked> Ensure crashes can be recorded with enough context for diagnosis.</li>
+    <li><input type="checkbox" disabled checked> Add tests for result-row formatting and TSV round-tripping.</li>
+  </ul>
+
+  <h3>Phase 14 — Upgrade <code>analysis.ipynb</code></h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Load unified <code>results.tsv</code>.</li>
+    <li><input type="checkbox" disabled checked> Validate rationale coverage: missing idea IDs, mechanisms, references, OOS hypotheses, and falsification rules.</li>
+    <li><input type="checkbox" disabled checked> Plot evidence-type mix and keep rates by evidence type.</li>
+    <li><input type="checkbox" disabled checked> Plot dataset/feature mix and OOS CAGR by feature family.</li>
+    <li><input type="checkbox" disabled checked> Produce a table of invalid-rationale or gate-failed runs with reasons.</li>
+    <li><input type="checkbox" disabled checked> Plot running best OOS CAGR among rationale-valid runs only.</li>
+    <li><input type="checkbox" disabled checked> Show invalid-rationale ideas separately so the user can see what was excluded.</li>
+    <li><input type="checkbox" disabled checked> Save updated progress visuals with filenames that distinguish OOS CAGR progress from old in-sample CAGR progress.</li>
+  </ul>
+
+  <h3>Phase 15 — Expand public alternative datasets after FOMC works</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Add Beige Book ingestion and features.</li>
+    <li><input type="checkbox" disabled checked> Add SEC EDGAR ingestion for selected filing types and sector-level aggregation.</li>
+    <li><input type="checkbox" disabled checked> Add FRED/ALFRED numeric macro ingestion, using vintages where feasible.</li>
+    <li><input type="checkbox" disabled checked> Evaluate whether public news metadata sources are legally and technically suitable.</li>
+    <li><input type="checkbox" disabled checked> Add one dataset at a time, with tests and a rationale-backed strategy idea for each.</li>
+    <li><input type="checkbox" disabled checked> Do not add paid, private, or legally ambiguous datasets without explicit user approval.</li>
+  </ul>
+
+  <h3>Phase 16 — Final quality gates</h3>
+  <ul>
+    <li><input type="checkbox" disabled checked> Run <code>uv run pytest -q</code>.</li>
+    <li><input type="checkbox" disabled checked> Run <code>uv run mypy prepare.py train.py datasets/*.py ideas/*.py</code>.</li>
+    <li><input type="checkbox" disabled checked> Run <code>uv run ruff check prepare.py train.py datasets/*.py ideas/*.py</code>.</li>
+    <li><input type="checkbox" disabled checked> Run FOMC ingestion from a clean cache or fixture mode.</li>
+    <li><input type="checkbox" disabled checked> Run the price-only baseline and verify parseable OOS/rationale fields.</li>
+    <li><input type="checkbox" disabled checked> Run the first text-aware idea and append a unified <code>results.tsv</code> row.</li>
+    <li><input type="checkbox" disabled checked> Execute or export <code>analysis.ipynb</code> and verify rationale-gate analysis appears.</li>
+    <li><input type="checkbox" disabled checked> Review <code>results.tsv</code> manually to confirm a human can understand each idea and result without opening code.</li>
+  </ul>
+
+  <h2>12. Verification commands</h2>
+  <pre><code>cd iter_3
+uv sync
+uv run pytest -q
+uv run mypy prepare.py train.py datasets/*.py ideas/*.py
+uv run ruff check prepare.py train.py datasets/*.py ideas/*.py
+uv run python datasets/ingest_fomc.py
+uv run train.py &gt; run.log 2&gt;&amp;1
+python - <<'PY'
+from pathlib import Path
+text = Path('run.log').read_text()
+for key in ['oos_cagr:', 'benchmark_oos_cagr:', 'excess_oos_cagr_vs_dbmf:', 'idea_id:', 'ruined:']:
+    assert key in text, key
+print('run.log contains required OOS/rationale fields')
+PY</code></pre>
+
+  <h2>13. Acceptance criteria</h2>
+  <ul>
+    <li><code>iter_3</code> exists and is self-contained.</li>
+    <li><code>program.md</code> explicitly says the system is dispensing financial advice and aims to maximize OOS CAGR.</li>
+    <li>At least one public text dataset is ingested into a normalized, timestamped event table.</li>
+    <li>At least one deterministic text feature is generated and point-in-time aligned to trading dates.</li>
+    <li>Backtests include DBMF matched benchmark plus train/validation/OOS CAGR metrics and excess CAGR diagnostics.</li>
+    <li>Every run has a validated <code>IdeaRationale</code>; missing rationale blocks ranking.</li>
+    <li><code>results.tsv</code> is readable by a human as the unified performance+rationale ledger, with one row per experiment and enough context to judge whether the idea is economically motivated rather than pure data mining.</li>
+    <li>Tests prove no lookahead in price or text feature slicing.</li>
+    <li>The first <code>iter_3</code> baseline reproduces the <code>iter_2</code> price-only strategy before adding text features, so improvements can be attributed.</li>
+  </ul>
+
+  <div class="callout good">
+    <strong>Recommended first milestone:</strong> build only FOMC text + rationale schema + OOS split first. Once that is stable, add Beige Book and SEC filings. This avoids turning <code>iter_3</code> into a broad data swamp before the evaluation discipline is in place.
+  </div>
+</main>
+</body>
+</html>

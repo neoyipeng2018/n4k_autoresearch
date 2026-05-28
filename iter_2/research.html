@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iter_2 workflow findings</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#38bdf8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
+    main { max-width: 980px; margin: 0 auto; padding: 42px 22px 72px; }
+    h1, h2, h3 { line-height:1.15; margin: 0 0 14px; }
+    h1 { font-size: 2.1rem; letter-spacing:-0.03em; }
+    h2 { margin-top: 34px; font-size:1.35rem; color:#f8fafc; border-bottom:1px solid #334155; padding-bottom:8px; }
+    p { margin: 10px 0; }
+    .lede { color:#cbd5e1; font-size:1.05rem; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin:18px 0; }
+    .card { background:linear-gradient(180deg, #111827, #0b1220); border:1px solid #334155; border-radius:14px; padding:16px; }
+    .metric { font-size:1.55rem; font-weight:750; color:#f8fafc; }
+    .label { color:var(--muted); font-size:.9rem; }
+    code, pre { background:#020617; color:#dbeafe; border:1px solid #1e293b; border-radius:8px; }
+    code { padding:2px 5px; }
+    pre { padding:12px; overflow:auto; }
+    table { width:100%; border-collapse:collapse; margin:14px 0; font-size:.94rem; }
+    th, td { border-bottom:1px solid #273449; padding:9px 8px; vertical-align:top; }
+    th { color:#bfdbfe; text-align:left; }
+    .good { color:var(--good); font-weight:700; }
+    .warn { color:var(--warn); font-weight:700; }
+    .bad { color:var(--bad); font-weight:700; }
+    ul { padding-left: 1.2rem; }
+    .small { color:var(--muted); font-size:.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Concise research findings on <code>iter_2/</code></h1>
+  <p class="lede"><code>iter_2</code> is a self-contained autonomous macro strategy search workflow. Its fixed engine tests retail ETF rotation strategies, rejects account-ruin cases, and ranks surviving experiments solely by CAGR. The current best implementation is a highly concentrated, monthly rebalanced, 21-trading-day momentum selector over a thematic/risk-on ETF universe.</p>
+
+  <div class="grid">
+    <div class="card"><div class="metric">34.374%</div><div class="label">current best strategy CAGR</div></div>
+    <div class="card"><div class="metric">9.390%</div><div class="label">matched-window DBMF CAGR</div></div>
+    <div class="card"><div class="metric">8.03×</div><div class="label">ending equity multiple</div></div>
+    <div class="card"><div class="metric">51</div><div class="label">experiments in ledger; 9 kept, 42 discarded</div></div>
+  </div>
+
+  <h2>What the workflow does</h2>
+  <ul>
+    <li><strong>Objective:</strong> maximize CAGR without ruin. Ruin is a hard disqualifier; among non-ruined strategies, only CAGR matters.</li>
+    <li><strong>Benchmark:</strong> DBMF is mandatory and matched to the same date window, but it is diagnostic only—not the ranking target.</li>
+    <li><strong>Data:</strong> daily Yahoo adjusted-close prices are read from <code>~/.cache/macroresearch/market/*.csv</code>, with direct Yahoo fetching as fallback.</li>
+    <li><strong>Experiment loop:</strong> modify <code>train.py</code> only, run mypy/ruff, execute <code>uv run train.py &gt; run.log 2&gt;&amp;1</code>, parse metrics, keep only CAGR-improving non-ruined variants, append <code>results.tsv</code>.</li>
+    <li><strong>Analysis:</strong> <code>analysis.ipynb</code> / <code>analysis.executed.ipynb</code> summarize the ledger and generate <code>progress.png</code>.</li>
+  </ul>
+
+  <h2>Core engine specifics in <code>prepare.py</code></h2>
+  <table>
+    <tr><th>Area</th><th>Specific behavior</th></tr>
+    <tr><td>Universe + benchmark</td><td>Strategy symbols are supplied by <code>train.py</code>; <code>DBMF</code> is always added and required.</td></tr>
+    <tr><td>Backtest cadence</td><td>Signals are evaluated at the start of each new calendar month using data only through the prior trading day, reducing lookahead risk.</td></tr>
+    <tr><td>Returns</td><td>Daily simple returns from adjusted closes; missing/infinite returns become 0.0.</td></tr>
+    <tr><td>Weight validation</td><td>Weights below -1 are rejected; absolute single weight and total gross exposure are capped at 2.0. Empty valid weights fall back to <code>SGOV</code> if available.</td></tr>
+    <tr><td>Ruin rule</td><td>Ruin if equity is invalid, non-finite, non-positive, or ever ≤ <code>0.25</code>.</td></tr>
+    <tr><td>CAGR</td><td>Calendar-day CAGR from first to last equity point, not 252-day annualization.</td></tr>
+  </table>
+
+  <h2>Current strategy in <code>train.py</code></h2>
+  <p>The live best strategy is <strong>thematic top-1 one-month momentum</strong>:</p>
+  <pre>SYMBOLS = QQQ, XLK, XLY, XLE, MTUM, QUAL, HYG, GLD, DBC, TLT, SMH, SOXX, XLC, XBI, SGOV
+MOMENTUM_DAYS = 21
+TOP_N = 1
+RISK_CAP = 1.0
+TREND_DAYS = 0
+USE_BLEND_SCORE = False
+USE_VOL_ADJUSTED_SCORE = False
+USE_SCORE_WEIGHTS = False
+USE_SPY_GUARD = False</pre>
+  <ul>
+    <li>At each monthly rebalance, compute each non-cash ETF's trailing 21-trading-day return.</li>
+    <li>Buy the single highest-scoring ETF at 100% weight.</li>
+    <li>If no score is available or the best score is non-positive, hold <code>SGOV</code>.</li>
+    <li>The strategy is long-only in practice, although the engine supports limited negative weights.</li>
+  </ul>
+
+  <h2>Empirical findings from <code>results.tsv</code></h2>
+  <ul>
+    <li><span class="good">Best:</span> experiment 38, <code>thematic_top1_1m_momentum</code>, CAGR <strong>0.343744</strong>, excess vs DBMF <strong>0.249840</strong>, non-ruined.</li>
+    <li>The largest improvement came from adding semiconductors/communication/biotech thematic exposure to the fast top-1 momentum setup.</li>
+    <li>Fast lookbacks dominated slower ones: <code>1m</code>/<code>21d</code>/<code>30d</code> variants were consistently near the top.</li>
+    <li>Concentration helped more than diversification: top-1 generally beat top-2/top-3; score weighting reduced the best result.</li>
+    <li>Vol-adjustment and broad/global additions were weak in this run; the worst ledger result was <code>sector_top1_voladj_6m</code> at CAGR 0.031943.</li>
+    <li>No logged experiment crashed or triggered the formal ruin threshold.</li>
+  </ul>
+
+  <h2>Behavior of the current best</h2>
+  <table>
+    <tr><th>Metric</th><th>Value</th></tr>
+    <tr><td>Window</td><td>2019-05-08 to 2026-05-27; 1773 observations</td></tr>
+    <tr><td>CAGR / DBMF CAGR</td><td>34.374% / 9.390%</td></tr>
+    <tr><td>End multiple</td><td>8.03×</td></tr>
+    <tr><td>Minimum equity</td><td>0.959×, well above 0.25 ruin threshold</td></tr>
+    <tr><td>Max drawdown observed</td><td>-34.26%, worst around 2022-12-28</td></tr>
+    <tr><td>Monthly rebalance count</td><td>85</td></tr>
+    <tr><td>Most frequent holdings</td><td>SMH 15 months, XLE 14, GLD 10, XBI 9, SOXX 7, DBC 7, TLT 6</td></tr>
+  </table>
+
+  <h2>Important caveats</h2>
+  <ul>
+    <li><span class="warn">Overfitting risk:</span> the ledger shows iterative search over many ETF sets/lookbacks on one historical window; the winning thematic/AI exposure may be sample-specific.</li>
+    <li><span class="warn">Survivorship and availability:</span> Yahoo adjusted closes are convenient but not a full institutional data pipeline; ETF inception dates and missing data matter.</li>
+    <li><span class="warn">Ruin is narrow:</span> formal ruin only means equity ≤ 25% or invalid values. It does not penalize drawdown, turnover, taxes, slippage, liquidity, concentration, or future regime fragility.</li>
+    <li><span class="warn">Monthly timing specificity:</span> signals use prior-day data at month changes, but executions assume frictionless daily close-to-close returns after rebalance.</li>
+  </ul>
+
+  <h2>Verification performed</h2>
+  <ul>
+    <li><code>uv run mypy prepare.py train.py scripts/ingest_public_macro.py</code>: passed.</li>
+    <li><code>uv run ruff check prepare.py train.py scripts/ingest_public_macro.py</code>: passed.</li>
+    <li><code>uv run pytest -q</code>: 8 tests passed.</li>
+    <li>Recomputed current best metrics from the workflow and matched <code>run.log</code>.</li>
+  </ul>
+
+  <p class="small">Bottom line: <code>iter_2</code> is a disciplined but highly search-driven ETF momentum laboratory. Its current best result is not a broad macro model; it is a concentrated monthly rotation strategy that won by rapidly chasing recent leadership across tech/thematic, energy, gold/commodities, long bonds, credit, and cash.</p>
+</main>
+</body>
+</html>
