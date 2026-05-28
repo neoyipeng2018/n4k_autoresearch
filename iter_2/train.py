@@ -6,10 +6,10 @@ import pandas as pd
 from prepare import format_result, run_backtest
 
 SYMBOLS = ['QQQ', 'XLK', 'XLY', 'XLE', 'MTUM', 'QUAL', 'HYG', 'GLD', 'DBC', 'TLT', 'SGOV']
-MOMENTUM_DAYS = 30
+MOMENTUM_DAYS = 21
 TOP_N = 1
 CASH_SYMBOL = "SGOV"
-TREND_DAYS = 0
+TREND_DAYS = 21
 RISK_CAP = 1.000000000000
 USE_BLEND_SCORE = False
 USE_VOL_ADJUSTED_SCORE = False
