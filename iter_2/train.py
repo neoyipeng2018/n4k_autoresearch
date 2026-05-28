@@ -3,23 +3,10 @@ from __future__ import annotations
 import math
 
 import pandas as pd
-
 from prepare import format_result, run_backtest
 
-SYMBOLS = [
-    "QQQ",
-    "XLK",
-    "XLY",
-    "XLE",
-    "MTUM",
-    "QUAL",
-    "HYG",
-    "GLD",
-    "DBC",
-    "TLT",
-    "SGOV",
-]
-MOMENTUM_DAYS = 63
+SYMBOLS = ['QQQ', 'XLK', 'XLY', 'XLE', 'MTUM', 'QUAL', 'HYG', 'GLD', 'DBC', 'TLT', 'SGOV']
+MOMENTUM_DAYS = 21
 TOP_N = 1
 CASH_SYMBOL = "SGOV"
 TREND_DAYS = 0
