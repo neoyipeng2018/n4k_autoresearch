@@ -3,122 +3,206 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>iter_2 workflow findings</title>
+  <title>iter_3 quant research suitability review</title>
   <style>
-    :root { --bg:#0f172a; --panel:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#38bdf8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:var(--bg); color:var(--text); line-height:1.55; }
-    main { max-width: 980px; margin: 0 auto; padding: 42px 22px 72px; }
-    h1, h2, h3 { line-height:1.15; margin: 0 0 14px; }
-    h1 { font-size: 2.1rem; letter-spacing:-0.03em; }
-    h2 { margin-top: 34px; font-size:1.35rem; color:#f8fafc; border-bottom:1px solid #334155; padding-bottom:8px; }
-    p { margin: 10px 0; }
-    .lede { color:#cbd5e1; font-size:1.05rem; }
+    :root {
+      --bg:#0b1020; --panel:#111827; --panel2:#0f172a; --text:#e5e7eb; --muted:#94a3b8;
+      --accent:#38bdf8; --good:#22c55e; --warn:#f59e0b; --bad:#ef4444; --line:#263449;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:linear-gradient(180deg,#08111f,#0b1020 240px); color:var(--text); line-height:1.58; }
+    main { max-width: 1120px; margin: 0 auto; padding: 42px 22px 80px; }
+    h1, h2, h3 { line-height:1.16; margin:0 0 14px; color:#f8fafc; letter-spacing:-0.02em; }
+    h1 { font-size:2.35rem; }
+    h2 { margin-top:36px; padding-bottom:8px; border-bottom:1px solid var(--line); font-size:1.45rem; }
+    h3 { margin-top:24px; font-size:1.08rem; color:#dbeafe; }
+    p { margin:10px 0; }
+    .lede { color:#cbd5e1; font-size:1.08rem; max-width:980px; }
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:12px; margin:18px 0; }
-    .card { background:linear-gradient(180deg, #111827, #0b1220); border:1px solid #334155; border-radius:14px; padding:16px; }
-    .metric { font-size:1.55rem; font-weight:750; color:#f8fafc; }
-    .label { color:var(--muted); font-size:.9rem; }
+    .card { background:linear-gradient(180deg, var(--panel), var(--panel2)); border:1px solid var(--line); border-radius:14px; padding:16px; box-shadow:0 12px 28px rgba(0,0,0,.18); }
+    .metric { font-size:1.55rem; font-weight:800; color:#f8fafc; }
+    .label { color:var(--muted); font-size:.91rem; }
+    .verdict { border-left:5px solid var(--warn); background:rgba(245,158,11,.08); padding:14px 16px; border-radius:12px; }
+    .good { color:var(--good); font-weight:700; }
+    .warn { color:var(--warn); font-weight:700; }
+    .bad { color:var(--bad); font-weight:700; }
+    .accent { color:var(--accent); font-weight:700; }
     code, pre { background:#020617; color:#dbeafe; border:1px solid #1e293b; border-radius:8px; }
     code { padding:2px 5px; }
     pre { padding:12px; overflow:auto; }
     table { width:100%; border-collapse:collapse; margin:14px 0; font-size:.94rem; }
-    th, td { border-bottom:1px solid #273449; padding:9px 8px; vertical-align:top; }
-    th { color:#bfdbfe; text-align:left; }
-    .good { color:var(--good); font-weight:700; }
-    .warn { color:var(--warn); font-weight:700; }
-    .bad { color:var(--bad); font-weight:700; }
-    ul { padding-left: 1.2rem; }
+    th, td { border-bottom:1px solid var(--line); padding:9px 8px; vertical-align:top; }
+    th { color:#bfdbfe; text-align:left; background:rgba(30,41,59,.35); }
+    ul, ol { padding-left:1.25rem; }
+    li { margin:5px 0; }
     .small { color:var(--muted); font-size:.9rem; }
+    .pill { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 8px; margin:2px 4px 2px 0; background:#0f172a; color:#cbd5e1; font-size:.86rem; }
   </style>
 </head>
 <body>
 <main>
-  <h1>Concise research findings on <code>iter_2/</code></h1>
-  <p class="lede"><code>iter_2</code> is a self-contained autonomous macro strategy search workflow. Its fixed engine tests retail ETF rotation strategies, rejects account-ruin cases, and ranks surviving experiments solely by CAGR. The current best implementation is a highly concentrated, monthly rebalanced, 21-trading-day momentum selector over a thematic/risk-on ETF universe.</p>
+  <h1>Critical review of <code>iter_3/</code> as a quant research workflow</h1>
+  <p class="lede"><code>iter_3</code> is a compact autonomous macro-ETF strategy research harness. It is strongest as a controlled sandbox for fast, auditable, rule-based ETF rotation experiments. It is not yet a robust institutional quant research platform: its validation protocol is thin, its current results are heavily exposed to multiple-testing and recent-regime overfit, transaction costs are absent, and several documents/tests still encode older OOS-selection language that conflicts with the intended validation-CAGR-without-ruin objective.</p>
 
   <div class="grid">
-    <div class="card"><div class="metric">34.374%</div><div class="label">current best strategy CAGR</div></div>
-    <div class="card"><div class="metric">9.390%</div><div class="label">matched-window DBMF CAGR</div></div>
-    <div class="card"><div class="metric">8.03×</div><div class="label">ending equity multiple</div></div>
-    <div class="card"><div class="metric">51</div><div class="label">experiments in ledger; 9 kept, 42 discarded</div></div>
+    <div class="card"><div class="metric">41</div><div class="label">ledger trials in <code>results.tsv</code></div></div>
+    <div class="card"><div class="metric">4</div><div class="label">kept validation-improving trials</div></div>
+    <div class="card"><div class="metric">33.355%</div><div class="label">best validation CAGR</div></div>
+    <div class="card"><div class="metric">62.723%</div><div class="label">locked OOS CAGR diagnostic</div></div>
+    <div class="card"><div class="metric">26.937%</div><div class="label">full matched-window CAGR</div></div>
+    <div class="card"><div class="metric">-32.98%</div><div class="label">observed max drawdown for current strategy</div></div>
   </div>
 
-  <h2>What the workflow does</h2>
+  <div class="verdict">
+    <strong>Bottom line:</strong> Suitable for early-stage quant ideation and reproducible toy-to-small research loops, especially for long-only liquid ETF momentum. Not suitable, without material upgrades, for deciding live capital allocation, estimating durable alpha, comparing complex hypotheses, or running high-confidence macro/text research. Treat the current best strategy as a candidate anomaly to stress-test, not as a discovered production edge.
+  </div>
+
+  <h2>What this system actually is</h2>
+  <p>The repository defines a single-file strategy research loop around a fixed backtest/evaluation engine:</p>
   <ul>
-    <li><strong>Objective:</strong> maximize CAGR without ruin. Ruin is a hard disqualifier; among non-ruined strategies, only CAGR matters.</li>
-    <li><strong>Benchmark:</strong> DBMF is mandatory and matched to the same date window, but it is diagnostic only—not the ranking target.</li>
-    <li><strong>Data:</strong> daily Yahoo adjusted-close prices are read from <code>~/.cache/macroresearch/market/*.csv</code>, with direct Yahoo fetching as fallback.</li>
-    <li><strong>Experiment loop:</strong> modify <code>train.py</code> only, run mypy/ruff, execute <code>uv run train.py &gt; run.log 2&gt;&amp;1</code>, parse metrics, keep only CAGR-improving non-ruined variants, append <code>results.tsv</code>.</li>
-    <li><strong>Analysis:</strong> <code>analysis.ipynb</code> / <code>analysis.executed.ipynb</code> summarize the ledger and generate <code>progress.png</code>.</li>
+    <li><code>prepare.py</code> is the fixed engine: data loading, Yahoo price fetching/caching, monthly backtest, split evaluation, DBMF benchmark comparison, CAGR calculation, gross-exposure validation, and ruin detection.</li>
+    <li><code>train.py</code> is the editable strategy file: it declares the ETF universe, signal parameters, weight selector, rationale metadata, and ledger appending.</li>
+    <li><code>ideas/schema.py</code> enforces a human-auditable strategy rationale and the unified tab-separated experiment ledger schema.</li>
+    <li><code>datasets/</code> registers public data sources and contains partial ingestion/feature helpers for prices, FOMC text, Beige Book text, SEC EDGAR metadata, and FRED URL construction.</li>
+    <li><code>tests/</code> checks core invariants: no prior-day lookahead in monthly signal calls, DBMF matched-window handling, OOS split reporting, rationale validation, and text-feature lagging.</li>
+    <li><code>analysis.ipynb</code> and <code>analysis.executed.ipynb</code> summarize the ledger, select the highest non-ruined validation-CAGR row, and generate <code>progress.png</code>.</li>
   </ul>
 
-  <h2>Core engine specifics in <code>prepare.py</code></h2>
+  <h2>Precise mechanics of the backtest engine</h2>
   <table>
-    <tr><th>Area</th><th>Specific behavior</th></tr>
-    <tr><td>Universe + benchmark</td><td>Strategy symbols are supplied by <code>train.py</code>; <code>DBMF</code> is always added and required.</td></tr>
-    <tr><td>Backtest cadence</td><td>Signals are evaluated at the start of each new calendar month using data only through the prior trading day, reducing lookahead risk.</td></tr>
-    <tr><td>Returns</td><td>Daily simple returns from adjusted closes; missing/infinite returns become 0.0.</td></tr>
-    <tr><td>Weight validation</td><td>Weights below -1 are rejected; absolute single weight and total gross exposure are capped at 2.0. Empty valid weights fall back to <code>SGOV</code> if available.</td></tr>
-    <tr><td>Ruin rule</td><td>Ruin if equity is invalid, non-finite, non-positive, or ever ≤ <code>0.25</code>.</td></tr>
-    <tr><td>CAGR</td><td>Calendar-day CAGR from first to last equity point, not 252-day annualization.</td></tr>
+    <tr><th>Component</th><th>Observed behavior</th><th>Quant-research implication</th></tr>
+    <tr><td>Data source</td><td>Daily adjusted closes from Yahoo Finance, loaded from <code>~/.cache/macroresearch/iter_3/market/*.csv</code> if available; otherwise fetched live from Yahoo chart API. DBMF is always added as a benchmark.</td><td>Convenient and auditable enough for prototypes, but not a complete data-quality pipeline. Live Yahoo fetches and ignored local caches can make historical runs less reproducible unless cache snapshots are archived.</td></tr>
+    <tr><td>Default price window</td><td>Data starts at <code>2018-01-01</code>, then aligns to non-null DBMF, so the effective full-window run starts <code>2019-05-08</code>.</td><td>DBMF inception/availability limits the matched full sample. The true validation/OOS evidence is short and dominated by 2020-2026 market regimes.</td></tr>
+    <tr><td>Signal timing</td><td>On the first trading day of each calendar month, the selector receives history through the previous trading day only.</td><td>This is a genuine strength: the core price signal avoids same-day lookahead in the tested monthly rebalance path.</td></tr>
+    <tr><td>Return model</td><td>Uses close-to-close simple returns from adjusted closes. Missing/infinite returns are replaced with 0.0. Rebalance is effectively frictionless at month boundaries.</td><td>Fast and simple, but unrealistic. It omits bid/ask spread, market impact, close execution uncertainty, taxes, borrow, financing, cash yield detail beyond SGOV price, and trading halts.</td></tr>
+    <tr><td>Rebalance cadence</td><td>Calendar-monthly. Within a month, weights remain fixed.</td><td>Appropriate for ETF rotation, but the code does not model execution date/time, order fill, turnover cost, or delayed execution.</td></tr>
+    <tr><td>Weight constraints</td><td>Rejects individual weights below <code>-1.0</code>, individual absolute weights above <code>2.0</code>, and total gross exposure above <code>2.0</code>. Empty weights fall back to <code>SGOV</code> if present.</td><td>Provides a basic sanity layer. It still permits shorts and 2x gross in the engine, although the current strategy is long-only.</td></tr>
+    <tr><td>Ruin definition</td><td>Ruin if equity is invalid, non-finite, non-positive, or ever at/below <code>0.25</code>.</td><td>Useful hard guard, but narrow: a 50-70% drawdown, extreme turnover, high volatility, tax drag, or untradeable concentration can still be classified as non-ruined.</td></tr>
+    <tr><td>Metric</td><td>CAGR uses calendar days between first and last equity observations.</td><td>Fine as a headline metric; insufficient alone for quant research because it ignores path risk, tail risk, turnover, and parameter uncertainty.</td></tr>
+    <tr><td>Benchmark</td><td>DBMF buy-and-hold is computed on the same aligned index and reported as CAGR/excess CAGR.</td><td>Good diagnostic for managed-futures comparison, but DBMF is not a tradable candidate by default and should not be the selector objective unless explicitly intended.</td></tr>
   </table>
+
+  <h2>Evaluation protocol and an important objective mismatch</h2>
+  <p>The intended research charter in <code>program.md</code> is now <strong>maximize validation CAGR without ruin</strong>; locked OOS is a final diagnostic/generalization test, and DBMF excess is diagnostic only. <code>train.py</code> implements its own ledger status accordingly: <code>keep</code> requires non-ruin, positive validation CAGR, and validation CAGR above <code>BEST_VALIDATION_CAGR</code>.</p>
+  <p>However, there is a notable inconsistency:</p>
+  <ul>
+    <li><code>README.md</code> still says the objective is to rank by locked out-of-sample CAGR and keep only if an OOS gate passes.</li>
+    <li><code>prepare.py::passes_oos_gate</code> still prioritizes <code>oos_cagr &gt; previous_best_oos_cagr</code>, positive DBMF excess, positive validation, and an OOS/train degradation rule.</li>
+    <li><code>tests/test_oos.py</code> explicitly names <code>test_passes_oos_gate_prioritizes_oos_cagr</code>, preserving the older objective.</li>
+    <li><code>train.py</code> prints <code>oos_passed</code> from that legacy gate, while its ledger status uses the newer validation-CAGR rule.</li>
+  </ul>
+  <p><span class="warn">This does not invalidate the current ledger status</span> because <code>append_current_result</code> computes <code>keep/discard</code> independently from validation CAGR. But it is dangerous for autonomous agents and future users: a tool or notebook that trusts <code>oos_passed</code> or README wording could accidentally select on the locked OOS set, leaking the test set into research decisions.</p>
 
   <h2>Current strategy in <code>train.py</code></h2>
-  <p>The live best strategy is <strong>thematic top-1 one-month momentum</strong>:</p>
-  <pre>SYMBOLS = QQQ, XLK, XLY, XLE, MTUM, QUAL, HYG, GLD, DBC, TLT, SMH, SOXX, XLC, XBI, SGOV
-MOMENTUM_DAYS = 21
-TOP_N = 1
-RISK_CAP = 1.0
-TREND_DAYS = 0
-USE_BLEND_SCORE = False
-USE_VOL_ADJUSTED_SCORE = False
-USE_SCORE_WEIGHTS = False
-USE_SPY_GUARD = False</pre>
-  <ul>
-    <li>At each monthly rebalance, compute each non-cash ETF's trailing 21-trading-day return.</li>
-    <li>Buy the single highest-scoring ETF at 100% weight.</li>
-    <li>If no score is available or the best score is non-positive, hold <code>SGOV</code>.</li>
-    <li>The strategy is long-only in practice, although the engine supports limited negative weights.</li>
-  </ul>
+  <p>The live strategy is <strong><code>sector_top2_1m_scoreweight_024</code>: Sector/style top-two one-month score-weighted momentum</strong>.</p>
+  <pre>Universe: SPY, QQQ, RSP, IWM, USMV, QUAL, MTUM, VLUE,
+          XLK, XLY, XLC, XLI, XLF, XLV, XLP, XLU, XLE,
+          SMH, SOXX, XBI, HYG, LQD, GLD, DBC, IEF, TLT, SGOV
+Signal:   trailing 21-trading-day return
+Cadence:  monthly; signal uses prices through the prior trading day
+Selection: top 2 non-cash ETFs by positive momentum score
+Sizing:   score-weighted by positive 21d momentum; residual cash only if risk cap &lt; 1
+Fallback: SGOV if no usable scores or if best momentum is non-positive
+Risk:     long-only by construction in current parameters; engine ruin threshold is 25% equity</pre>
+  <p>The implemented helper functions also support variants that are currently disabled: blended 3/6/12-month momentum, volatility-adjusted score, per-asset moving-average trend filters, SPY market guard, volatility target for single-asset selections, top-N changes, and minimum momentum thresholds.</p>
 
-  <h2>Empirical findings from <code>results.tsv</code></h2>
-  <ul>
-    <li><span class="good">Best:</span> experiment 38, <code>thematic_top1_1m_momentum</code>, CAGR <strong>0.343744</strong>, excess vs DBMF <strong>0.249840</strong>, non-ruined.</li>
-    <li>The largest improvement came from adding semiconductors/communication/biotech thematic exposure to the fast top-1 momentum setup.</li>
-    <li>Fast lookbacks dominated slower ones: <code>1m</code>/<code>21d</code>/<code>30d</code> variants were consistently near the top.</li>
-    <li>Concentration helped more than diversification: top-1 generally beat top-2/top-3; score weighting reduced the best result.</li>
-    <li>Vol-adjustment and broad/global additions were weak in this run; the worst ledger result was <code>sector_top1_voladj_6m</code> at CAGR 0.031943.</li>
-    <li>No logged experiment crashed or triggered the formal ruin threshold.</li>
-  </ul>
-
-  <h2>Behavior of the current best</h2>
+  <h2>Empirical findings from the ledger and final run</h2>
   <table>
-    <tr><th>Metric</th><th>Value</th></tr>
-    <tr><td>Window</td><td>2019-05-08 to 2026-05-27; 1773 observations</td></tr>
-    <tr><td>CAGR / DBMF CAGR</td><td>34.374% / 9.390%</td></tr>
-    <tr><td>End multiple</td><td>8.03×</td></tr>
-    <tr><td>Minimum equity</td><td>0.959×, well above 0.25 ruin threshold</td></tr>
-    <tr><td>Max drawdown observed</td><td>-34.26%, worst around 2022-12-28</td></tr>
-    <tr><td>Monthly rebalance count</td><td>85</td></tr>
-    <tr><td>Most frequent holdings</td><td>SMH 15 months, XLE 14, GLD 10, XBI 9, SOXX 7, DBC 7, TLT 6</td></tr>
+    <tr><th>Metric</th><th>Current best / final strategy</th></tr>
+    <tr><td>Idea ID</td><td><code>sector_top2_1m_scoreweight_024</code></td></tr>
+    <tr><td>Train CAGR</td><td>9.629%</td></tr>
+    <tr><td>Validation CAGR</td><td><strong>33.355%</strong></td></tr>
+    <tr><td>Locked OOS CAGR</td><td>62.723% diagnostic</td></tr>
+    <tr><td>DBMF OOS CAGR</td><td>17.597% diagnostic</td></tr>
+    <tr><td>OOS excess vs DBMF</td><td>45.126% diagnostic</td></tr>
+    <tr><td>Full matched-window CAGR</td><td>26.937%</td></tr>
+    <tr><td>Full matched-window DBMF CAGR</td><td>9.398%</td></tr>
+    <tr><td>End multiple</td><td>5.377× from 2019-05-08 to 2026-05-27</td></tr>
+    <tr><td>Ruin</td><td><span class="good">false</span>; minimum equity observed was about 0.961×, above the 0.25 threshold</td></tr>
+    <tr><td>Path risk</td><td>Annualized daily volatility about 23.1%; worst day -5.72%; worst month -16.81%; max drawdown -32.98%</td></tr>
+    <tr><td>Turnover proxy</td><td>85 monthly rebalances; average sum of absolute weight changes about 1.66 per rebalance; median 2.00. This is high enough that costs/taxes matter.</td></tr>
+  </table>
+  <p>Across 41 ledger trials, only four rows are marked <code>keep</code>: the original vanilla 63-day momentum baseline, top-one 21-day sector/style momentum, equal-weight top-two 21-day sector/style momentum, and the final score-weighted top-two 21-day sector/style variant. No row in the ledger is marked ruined.</p>
+  <p>The best validation row is not the best OOS row. <code>full_top1_1m_exalts_027</code> achieved a much higher OOS CAGR of 158.541%, but only 19.580% validation CAGR, so it is correctly discarded under the validation objective. This is a useful illustration of why locked OOS must remain a diagnostic rather than a tuning target.</p>
+
+  <h2>What seems to have driven the winning result</h2>
+  <ul>
+    <li><strong>Fast relative momentum dominated.</strong> 21-day lookbacks outperformed most 42/63/126-day variants on validation in this ledger.</li>
+    <li><strong>Sector/thematic granularity mattered.</strong> The expanded universe includes semiconductors, technology, biotech, sector ETFs, commodities, gold, bonds, credit, factors, and cash. The top holdings by monthly selection frequency for the current strategy were SMH, XLE, SOXX, XBI, GLD, XLU, DBC, XLF, TLT, IWM, XLY, and XLK.</li>
+    <li><strong>Top-two diversification helped slightly on validation.</strong> Top-one 21-day sector/style momentum had 32.017% validation CAGR; equal-weight top-two had 33.049%; score-weighted top-two reached 33.355%.</li>
+    <li><strong>Several “risk control” variants reduced validation CAGR.</strong> SPY guard, trend filters, volatility target, and volatility-adjusted scoring mostly failed to beat the best validation row, though they may still be valuable under a drawdown-aware objective.</li>
+    <li><strong>The high OOS result is probably regime-sensitive.</strong> 2025-2026 OOS performance is exceptional and likely reflects strong recent leadership/chasing behavior in specific ETF sleeves, not proof of a stable structural edge.</li>
+  </ul>
+
+  <h2>Strengths for quant research</h2>
+  <table>
+    <tr><th>Strength</th><th>Why it matters</th></tr>
+    <tr><td>Clear separation of fixed engine and editable strategy</td><td>Restricting experiments to <code>train.py</code> reduces uncontrolled changes to data loading and evaluation logic. This is good research hygiene for autonomous loops.</td></tr>
+    <tr><td>Human-auditable rationale gate</td><td>Every run must declare mechanism, evidence type, affected assets, feature inputs, hypothesis, falsification, and references. This combats pure metric mining, at least procedurally.</td></tr>
+    <tr><td>Unified TSV ledger</td><td>The ledger stores rationale and results in one append-only table. This matches the preferred workflow for auditability and avoids separating “idea” and “result” context.</td></tr>
+    <tr><td>Prior-day signal timing test</td><td>The monthly selector is tested to receive only historical prices through the prior day, which addresses a common lookahead bug.</td></tr>
+    <tr><td>Locked OOS concept is present</td><td>The repository distinguishes train, validation, and locked OOS windows. When followed correctly, this is superior to optimizing the full sample.</td></tr>
+    <tr><td>Public dataset awareness</td><td>The registry explicitly lists public text/numeric datasets and records publication timestamp fields. FOMC text feature alignment lags events by one day.</td></tr>
+    <tr><td>Simple reproducible commands</td><td><code>uv run pytest -q</code>, <code>uv run mypy .</code>, <code>uv run ruff check .</code>, and <code>uv run train.py</code> are enough to validate and run the system.</td></tr>
   </table>
 
-  <h2>Important caveats</h2>
+  <h2>Major weaknesses and research risks</h2>
+  <h3>1. Multiple-testing and agentic overfit risk are high</h3>
+  <p>The ledger has 41 formal trials, and the strategy class is a family of ETF-universe/lookback/top-N/filter/sizing variants. The selected validation CAGR is the maximum of many related trials on one two-year validation period. A high validation CAGR after iterative search is therefore biased upward. There is no deflated Sharpe, White’s Reality Check, combinatorial purged cross-validation, nested walk-forward, parameter-neighborhood stability test, or holdout embargo beyond the single locked OOS window.</p>
+
+  <h3>2. The validation/OOS split is short and regime-specific</h3>
+  <p>Train is 2020-2022, validation is 2023-2024, and locked OOS is 2025-present. That is a very small number of independent market regimes, especially for monthly ETF rotation. The OOS window is roughly 17 months in the observed run and can be dominated by a few leadership episodes. This is not enough to infer durable alpha.</p>
+
+  <h3>3. Costs, taxes, and execution are omitted</h3>
+  <p>The strategy has high monthly turnover by a simple weight-change proxy. The backtest assumes adjusted-close returns and immediate frictionless monthly rebalances. It does not model bid/ask spread, close execution, slippage on sector/thematic ETFs, taxable distributions, short-term capital gains, or account constraints. A real quant research platform needs a cost model and sensitivity table before interpreting CAGR.</p>
+
+  <h3>4. Risk is under-specified</h3>
+  <p>Ruin only means equity at/below 25% or invalid values. The final strategy’s observed max drawdown is about -33%, which is not “ruin” but is material for a retail account. The objective intentionally ignores Sharpe, drawdown, Calmar, CVaR, and turnover during selection. That is consistent with the program, but it means the harness is optimizing a narrow and potentially fragile property.</p>
+
+  <h3>5. Data engineering is prototype-level</h3>
+  <p>Yahoo adjusted closes are adequate for prototypes but not enough for professional research. The system does not version raw data snapshots, audit corporate action revisions, explicitly handle ETF inception survivorship, or persist downloaded data as part of the run artifact. Missing returns are filled with zero, which can mask data-quality issues. FRED is flagged as not point-in-time safe unless ALFRED vintages are used, but no actual vintage-safe macro pipeline is implemented.</p>
+
+  <h3>6. Text/macro capabilities are mostly scaffolding</h3>
+  <p>The repository advertises FOMC, Beige Book, SEC EDGAR, and FRED data, and it has useful primitives such as FOMC lexicon scoring and next-day event alignment. But the current strategy uses only price momentum. FOMC ingestion only parses links; Beige Book and SEC modules mostly normalize metadata; FRED only constructs URLs. There is not yet a robust dataset builder, feature store, coverage report, text-model evaluation harness, or integration of these features into candidate strategies.</p>
+
+  <h3>7. Documentation and tests preserve stale OOS-selection semantics</h3>
+  <p>The conflict between <code>program.md</code>/<code>train.py</code> and <code>README.md</code>/<code>prepare.py::passes_oos_gate</code>/<code>tests/test_oos.py</code> is the most important operational flaw. It creates ambiguity for future autonomous agents and can silently reintroduce test-set leakage.</p>
+
+  <h2>Suitability scorecard</h2>
+  <table>
+    <tr><th>Use case</th><th>Suitability</th><th>Reason</th></tr>
+    <tr><td>Fast ETF momentum ideation</td><td><span class="good">Good</span></td><td>The fixed engine, simple strategy file, and ledger are well suited to trying interpretable monthly ETF rules.</td></tr>
+    <tr><td>Autonomous research loop auditability</td><td><span class="good">Good, with caveats</span></td><td>Rationales and results are unified; however stale objective wording must be fixed to avoid OOS leakage.</td></tr>
+    <tr><td>Retail educational research artifact</td><td><span class="good">Good</span></td><td>Outputs are understandable, use liquid ETFs, and avoid complex instruments in the current strategy.</td></tr>
+    <tr><td>Production trading decision</td><td><span class="bad">Poor as-is</span></td><td>No cost model, no operational broker path, no live monitoring, no risk budget, no parameter stability analysis.</td></tr>
+    <tr><td>Institutional-grade quant validation</td><td><span class="bad">Poor as-is</span></td><td>Single split, short history, multiple testing, no robustness or statistical correction.</td></tr>
+    <tr><td>Macro text research</td><td><span class="warn">Promising but immature</span></td><td>Registry and alignment helpers exist, but ingestion and feature integration are incomplete and unused by the current best.</td></tr>
+    <tr><td>Cross-asset macro research</td><td><span class="warn">Moderate for ETFs only</span></td><td>ETF proxies cover many macro sleeves, but the engine lacks futures curves, rates term structure, FX spot/forward, commodities carry, and point-in-time macro vintages.</td></tr>
+  </table>
+
+  <h2>Recommended upgrades before trusting this for serious quant research</h2>
+  <ol>
+    <li><strong>Resolve the objective mismatch.</strong> Update <code>README.md</code>, <code>prepare.py::passes_oos_gate</code>, and <code>tests/test_oos.py</code> so validation-CAGR selection is the only keep/discard rule and OOS remains diagnostic.</li>
+    <li><strong>Add cost sensitivity.</strong> Report results at 0, 2, 5, 10, and 25 bps one-way trading cost using actual monthly weight deltas. Include tax/friction notes for retail use.</li>
+    <li><strong>Add robustness analysis.</strong> Run parameter neighborhoods for lookback, top-N, universe subsets, rebalance day, score weighting, risk cap, and cash fallback. Prefer broad robust regions over the top row.</li>
+    <li><strong>Use walk-forward or combinatorial validation.</strong> Add rolling train/validation/OOS folds, or at minimum multiple non-overlapping validation windows with embargoes.</li>
+    <li><strong>Track more diagnostics without selecting on them.</strong> Add max drawdown, annualized volatility, Sharpe, Calmar, worst day/month, CVaR, turnover, number of holdings, and concentration to the ledger.</li>
+    <li><strong>Version the data.</strong> Persist cache manifests with symbol, source URL, download timestamp, row count, first/last date, sha256, and adjusted-close column provenance.</li>
+    <li><strong>Harden data quality checks.</strong> Fail or warn on long missing stretches instead of filling all missing returns with 0.0; handle ETF inception explicitly.</li>
+    <li><strong>Promote public text datasets from scaffolding to real features.</strong> Build actual FOMC/Beige Book/FRED/SEC ingestion artifacts with coverage tests, publication timestamps, lagged alignment, and feature diagnostics.</li>
+    <li><strong>Archive every formal trial artifact.</strong> Store strategy parameters, code hash, data manifest, run log, and result row together so the ledger can be reproduced later.</li>
+    <li><strong>Add anti-overfit statistical reporting.</strong> Include number of trials, family of variants tested, best-vs-median validation performance, and a “selection bias warning” in analysis artifacts.</li>
+  </ol>
+
+  <h2>Verification performed for this review</h2>
   <ul>
-    <li><span class="warn">Overfitting risk:</span> the ledger shows iterative search over many ETF sets/lookbacks on one historical window; the winning thematic/AI exposure may be sample-specific.</li>
-    <li><span class="warn">Survivorship and availability:</span> Yahoo adjusted closes are convenient but not a full institutional data pipeline; ETF inception dates and missing data matter.</li>
-    <li><span class="warn">Ruin is narrow:</span> formal ruin only means equity ≤ 25% or invalid values. It does not penalize drawdown, turnover, taxes, slippage, liquidity, concentration, or future regime fragility.</li>
-    <li><span class="warn">Monthly timing specificity:</span> signals use prior-day data at month changes, but executions assume frictionless daily close-to-close returns after rebalance.</li>
+    <li>Read and cross-checked <code>README.md</code>, <code>program.md</code>, <code>prepare.py</code>, <code>train.py</code>, <code>ideas/schema.py</code>, <code>datasets/*</code>, <code>tests/*</code>, <code>results.tsv</code>, <code>run.log</code>, and notebook cell summaries.</li>
+    <li>Recomputed current strategy metrics through the repository code with <code>uv run python</code>: full-window CAGR 0.269365, DBMF CAGR 0.093979, train CAGR 0.096288, validation CAGR 0.333550, OOS CAGR 0.627231, OOS DBMF CAGR 0.175971, non-ruined.</li>
+    <li>Computed additional path diagnostics from the strategy equity curve: max drawdown -0.329788, annualized volatility 0.230578, worst day -0.057164, worst month -0.168075, and high monthly turnover proxy.</li>
+    <li>Confirmed ledger summary: 41 rows, 4 kept rows, 0 ruined rows, best validation row <code>sector_top2_1m_scoreweight_024</code>, best OOS row <code>full_top1_1m_exalts_027</code> discarded under validation selection.</li>
   </ul>
 
-  <h2>Verification performed</h2>
-  <ul>
-    <li><code>uv run mypy prepare.py train.py scripts/ingest_public_macro.py</code>: passed.</li>
-    <li><code>uv run ruff check prepare.py train.py scripts/ingest_public_macro.py</code>: passed.</li>
-    <li><code>uv run pytest -q</code>: 8 tests passed.</li>
-    <li>Recomputed current best metrics from the workflow and matched <code>run.log</code>.</li>
-  </ul>
-
-  <p class="small">Bottom line: <code>iter_2</code> is a disciplined but highly search-driven ETF momentum laboratory. Its current best result is not a broad macro model; it is a concentrated monthly rotation strategy that won by rapidly chasing recent leadership across tech/thematic, energy, gold/commodities, long bonds, credit, and cash.</p>
+  <p class="small">This report is research infrastructure analysis, not financial advice. The current strategy’s high CAGR should be interpreted as a hypothesis requiring robustness, cost, and out-of-family validation before any live use.</p>
 </main>
 </body>
 </html>

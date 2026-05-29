@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>iter_4 text data non-use investigation</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #0f172a; --panel: #111827; --ink: #e5e7eb; --muted: #9ca3af; --accent: #38bdf8; --warn: #f59e0b; --bad: #f87171; --good: #34d399; --line: #334155; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); line-height: 1.55; }
+    main { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: 2.2rem; margin-bottom: 0.35rem; }
+    h2 { margin-top: 2.2rem; padding-top: 1.2rem; border-top: 1px solid var(--line); color: #f8fafc; }
+    h3 { margin-top: 1.5rem; color: #e0f2fe; }
+    p, li { color: var(--ink); }
+    .muted { color: var(--muted); }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 24px 0; }
+    .card { background: rgba(17, 24, 39, 0.85); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+    .card strong { display: block; font-size: 0.9rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .card span { display: block; font-size: 1.4rem; color: #fff; margin-top: 8px; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { background: rgba(148, 163, 184, 0.18); border: 1px solid rgba(148, 163, 184, 0.25); padding: 0.1rem 0.35rem; border-radius: 6px; }
+    pre { white-space: pre-wrap; background: #020617; border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--line); padding: 10px 12px; vertical-align: top; }
+    th { background: rgba(56, 189, 248, 0.14); text-align: left; }
+    tr:nth-child(even) td { background: rgba(255, 255, 255, 0.025); }
+    .bad { color: var(--bad); font-weight: 650; }
+    .warn { color: var(--warn); font-weight: 650; }
+    .good { color: var(--good); font-weight: 650; }
+    .callout { border-left: 4px solid var(--accent); background: rgba(56, 189, 248, 0.10); padding: 14px 16px; border-radius: 10px; }
+    .callout.warn { border-left-color: var(--warn); background: rgba(245, 158, 11, 0.10); color: var(--ink); }
+    .callout.bad { border-left-color: var(--bad); background: rgba(248, 113, 113, 0.10); color: var(--ink); }
+    .small { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Why the agent is not using the described text data</h1>
+  <p class="muted">Investigation target: <code>iter_4/</code>. Generated after inspecting the data registry, ingestion helpers, text feature code, strategy harness, autonomous instructions, tests, cache state, and experiment ledger.</p>
+
+  <div class="summary">
+    <div class="card"><strong>Ledger rows inspected</strong><span>64 formal rows</span></div>
+    <div class="card"><strong>Rows using FOMC / Beige / EDGAR / FRED text features</strong><span>0</span></div>
+    <div class="card"><strong>Actual public macro ingestion script</strong><span>prices only</span></div>
+    <div class="card"><strong>Text integration into backtest harness</strong><span>not wired</span></div>
+  </div>
+
+  <section class="callout bad">
+    <h2 style="border:0; padding:0; margin-top:0;">Executive finding</h2>
+    <p>The text data is mostly <strong>described as available</strong>, not actually made operational for the autonomous loop. The repo contains registry entries, small writer stubs, and one FOMC lexicon feature builder, but the main ingestion command only downloads Yahoo prices; no local text artifacts exist in the observed cache; <code>prepare.py</code> only loads prices; <code>train.py</code> receives only a price DataFrame; and the ledger shows every completed idea is a price-momentum variant. The agent is following the easiest executable path: modify <code>train.py</code> inside a price-only backtest API, run tests, and optimize validation CAGR.</p>
+  </section>
+
+  <h2>What the repository says should exist</h2>
+  <p><code>program.md</code> gives the agent a public-dataset policy and says text data should be considered. It lists:</p>
+  <ul>
+    <li><code>fomc_text</code>: FOMC statements and minutes text.</li>
+    <li><code>beige_book_text</code>: Federal Reserve Beige Book text.</li>
+    <li><code>sec_edgar</code>: SEC EDGAR filing text and metadata.</li>
+    <li><code>fred_numeric</code>: FRED numeric macro series.</li>
+    <li><code>datasets/text_features.py</code>: FOMC lexicon features and publication-lagged alignment.</li>
+  </ul>
+  <p>The same instructions also constrain the autonomous loop to edit only <code>train.py</code>, while <code>prepare.py</code>, <code>datasets/*</code>, and <code>ideas/schema.py</code> are fixed files. This means any text usage must already be consumable from <code>train.py</code> without changing the fixed data layer.</p>
+
+  <h2>What actually exists</h2>
+  <h3>1. Dataset registry: metadata only, with an iter_3 cache-root bug</h3>
+  <p><code>datasets/registry.py</code> defines <code>DatasetSpec</code> entries for prices, FOMC, Beige Book, SEC EDGAR, and FRED. The registry is useful as a catalog, but it does not load data, validate artifact existence, or connect datasets to the backtester.</p>
+  <pre>datasets/registry.py:
+CACHE_ROOT = Path.home() / ".cache" / "macroresearch" / "iter_3"
+DATASETS = {
+  "prices_yahoo": ...,
+  "fomc_text": ...,
+  "beige_book_text": ...,
+  "sec_edgar": ...,
+  "fred_numeric": ...,
+}</pre>
+  <p class="warn">Specificity: in <code>iter_4</code>, the registry still points at <code>~/.cache/macroresearch/iter_3</code>. The test suite explicitly asserts that stale path via <code>test_iter3_cache_root_is_isolated</code>, so the bug is protected by a passing test. Meanwhile, <code>prepare.py</code> uses <code>~/.cache/macroresearch/iter_4</code> for prices. This split makes the registry less trustworthy as the operational source of truth.</p>
+
+  <h3>2. The public ingestion command ingests only prices</h3>
+  <p><code>scripts/ingest_public_macro.py</code> imports only <code>datasets.ingest_prices.ingest_prices</code> and calls it for <code>DEFAULT_UNIVERSE + DBMF</code>. It does not call FOMC, Beige Book, SEC, or FRED ingestion.</p>
+  <pre>from datasets.ingest_prices import ingest_prices
+from prepare import BENCHMARK_SYMBOL, DEFAULT_UNIVERSE
+
+symbols = list(dict.fromkeys([*DEFAULT_UNIVERSE, BENCHMARK_SYMBOL]))
+paths = ingest_prices(symbols)</pre>
+  <p>So the setup command documented in <code>README.md</code>:</p>
+  <pre>uv run scripts/ingest_public_macro.py</pre>
+  <p>does not ingest public macro text. Despite the script name, it is a Yahoo-price ingestion script.</p>
+
+  <h3>3. Text ingestion modules are mostly artifact writers, not live ingestors</h3>
+  <table>
+    <thead><tr><th>Module</th><th>What it really does</th><th>Important limitations</th></tr></thead>
+    <tbody>
+      <tr><td><code>datasets/ingest_fomc.py</code></td><td>Parses FOMC links from supplied HTML, normalizes whitespace, infers a publication date from a URL date, and writes <code>fomc_events.tsv</code> using a caller-supplied <code>fetch_text</code> callback.</td><td>No top-level function downloads the Fed calendar, no requests call is provided here, and publication time is forced to midnight UTC based on URL date. It can write files only if another script supplies documents and fetched text.</td></tr>
+      <tr><td><code>datasets/ingest_beige_book.py</code></td><td>Normalizes a caller-supplied Beige Book document and writes <code>beige_book_events.tsv</code>.</td><td>No crawler, no Federal Reserve index parser, no release calendar, no feature builder.</td></tr>
+      <tr><td><code>datasets/ingest_sec.py</code></td><td>Normalizes CIKs, constructs SEC URLs, and writes filing metadata to <code>sec_filings.tsv</code>.</td><td>Does not fetch submissions, does not download filing text, and does not build sector-level features.</td></tr>
+      <tr><td><code>datasets/ingest_fred.py</code></td><td>Builds FRED observation URLs and writes caller-supplied observations.</td><td>No API-key wiring, no series list used by the strategy, no loader into the backtest.</td></tr>
+    </tbody>
+  </table>
+  <p>These modules are tested with toy fixtures, which proves deterministic formatting and schema shape, not end-to-end availability for the agent loop.</p>
+
+  <h3>4. The only implemented text feature builder is FOMC lexicon scoring</h3>
+  <p><code>datasets/text_features.py</code> implements:</p>
+  <ul>
+    <li><code>tokenize(text)</code>: lowercase regex tokenization using <code>[a-z]+(?:-[a-z]+)?</code>. Hyphenated terms stay as one token, so <code>inflation-risk</code> is not counted as <code>inflation</code> or <code>risk</code>.</li>
+    <li><code>lexicon_score(text, positive_terms, negative_terms)</code>: <code>(positive_count - negative_count) / token_count</code>; empty text returns <code>0.0</code>.</li>
+    <li><code>build_fomc_features(events)</code>: requires <code>published_at</code> and <code>text</code>, sorts events by publication time, and emits <code>token_count</code>, <code>hawkish_minus_dovish</code>, <code>uncertainty_score</code>, <code>source_dataset</code>, <code>feature_version</code>, and <code>lexicon_version</code>.</li>
+    <li><code>align_event_features_to_prices(prices, event_features)</code>: converts <code>published_at</code> to UTC, drops timezone, normalizes to the calendar day, adds one calendar day, forward-fills event values onto the price index, and reindexes to trading days.</li>
+  </ul>
+  <p>The policy-sentiment lexicon is deliberately small:</p>
+  <table>
+    <thead><tr><th>Feature</th><th>Terms / calculation</th></tr></thead>
+    <tbody>
+      <tr><td><code>hawkish_minus_dovish</code></td><td>Hawkish terms: inflation, restrictive, tightening, elevated, overheating, hike, hikes, firming. Dovish terms: cut, cuts, weakness, unemployment, accommodative, easing, slack, slowdown. Score is net count divided by token count.</td></tr>
+      <tr><td><code>uncertainty_score</code></td><td>Uncertainty terms: uncertain, uncertainty, risk, risks, volatile. Score is count divided by token count because the negative set is empty.</td></tr>
+    </tbody>
+  </table>
+  <p class="warn">Specificity: <code>align_event_features_to_prices</code> includes metadata columns unless the caller removes them. Because <code>source_dataset</code>, <code>feature_version</code>, and <code>lexicon_version</code> are strings, the aligned DataFrame may contain object columns. A strategy author must select numeric columns before using them in rules.</p>
+
+  <h3>5. The backtest harness is price-only</h3>
+  <p><code>prepare.py</code> is the fixed data/evaluation harness. Its core loader is <code>load_prices(symbols)</code>, which returns a DataFrame of Yahoo adjusted-close prices plus DBMF. The <code>WeightSelector</code> protocol is:</p>
+  <pre>class WeightSelector(Protocol):
+    def __call__(self, day: pd.Timestamp, prices: pd.DataFrame) -&gt; Weights: ...</pre>
+  <p>During monthly rebalancing, the harness calls:</p>
+  <pre>history = prices.loc[:previous_day, tradable]
+current_weights = validate_weights(select_weights(previous_day, history), tradable_set)</pre>
+  <p>So <code>select_weights</code> receives only historical prices for tradable symbols. There is no <code>load_public_dataset</code>, no <code>load_fomc_events</code>, no event-feature join, and no extra feature store passed into the strategy. The model interface strongly nudges agents toward price-only ideas because price history is the only fully operational input in the fixed harness.</p>
+
+  <h3>6. <code>train.py</code> uses only price momentum</h3>
+  <p>The current editable strategy imports only <code>pandas</code>, <code>ideas.schema</code>, and <code>prepare</code>. It does not import <code>datasets.text_features</code>, <code>datasets.registry</code>, or any text ingestion module. The active <code>IDEA.feature_inputs</code> are:</p>
+  <pre>('price_momentum_21d', 'score_weighted_top2', 'equity_sector_universe')</pre>
+  <p>The weight function ranks tradable symbols by trailing price return and optionally by trend, volatility, score weighting, SPY guard, and cash fallback. It has no reference to FOMC, Beige Book, EDGAR, FRED, or any aligned event feature.</p>
+
+  <h2>Empirical evidence from the ledger and cache</h2>
+  <h3>Experiment ledger</h3>
+  <p>I parsed <code>results.tsv</code>. It contains 64 completed rows. All rows have <code>evidence_type = replication_of_known_anomaly</code>; feature inputs are price-momentum / ETF-universe variants; there are no rows whose feature inputs or notes mention FOMC, Beige Book, EDGAR, FRED, hawkish/dovish tone, uncertainty, or text. The apparent term <code>sec</code> appears only inside words such as <em>sector</em>, not as SEC data use.</p>
+  <table>
+    <thead><tr><th>Observed feature family</th><th>Use in ledger</th></tr></thead>
+    <tbody>
+      <tr><td><code>price_momentum_21d</code></td><td>dominant feature family</td></tr>
+      <tr><td><code>score_weighted_top2</code></td><td>dominant improvement variant</td></tr>
+      <tr><td>trend filters / volatility / universe changes</td><td>tested as price-derived variants</td></tr>
+      <tr><td>FOMC / Beige Book / EDGAR / FRED text features</td><td><span class="bad">0 rows</span></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Cache state</h3>
+  <p>The observed cache has no <code>~/.cache/macroresearch/iter_4</code> directory. <code>~/.cache/macroresearch/iter_3/market</code> exists and contains price CSVs, including DBMF and multiple ETFs. No cached FOMC, Beige Book, SEC, or FRED artifacts were observed in the cache listing. This matches the code: the public ingestion script writes prices only, and the registry points at iter_3.</p>
+
+  <h2>Root causes</h2>
+  <ol>
+    <li><strong>The “available datasets” are not operational datasets.</strong> They are registry metadata and writer helpers. The loop has no command that materializes text artifacts from public sources.</li>
+    <li><strong>The fixed evaluation harness exposes only prices.</strong> The autonomous agent is told to edit only <code>train.py</code>, but <code>prepare.py</code> owns data loading and only loads Yahoo prices. This makes text usage optional, manual, and brittle from inside <code>train.py</code>.</li>
+    <li><strong>The documented setup command is misleading.</strong> <code>scripts/ingest_public_macro.py</code> sounds macro-wide but only calls price ingestion.</li>
+    <li><strong>The registry cache root is stale.</strong> <code>datasets.registry.CACHE_ROOT</code> points to <code>iter_3</code> and a test asserts that behavior. This conflicts with <code>prepare.py</code>, which points to <code>iter_4</code>.</li>
+    <li><strong>Text features are narrow and only partially implemented.</strong> FOMC has simple lexicon features; Beige Book and EDGAR have no feature builders; SEC has metadata only, not filing text content; FRED has URL/writer helpers only.</li>
+    <li><strong>The agent’s optimization pressure rewards fast price-only iterations.</strong> Price momentum variants are trivial to express in <code>train.py</code>, pass tests, and can be evaluated quickly. Text variants require discovering absent artifacts, writing ad hoc loaders, handling object columns, handling missing events, and preserving point-in-time alignment.</li>
+    <li><strong>No enforcement exists in the rationale gate.</strong> <code>IdeaRationale.feature_inputs</code> only requires non-empty strings; it does not require at least one public text dataset trial or validate that named feature inputs were actually computed.</li>
+  </ol>
+
+  <h2>How text data could be used today, without editing fixed files</h2>
+  <p>It is technically possible but awkward. A <code>train.py</code>-only strategy would need to:</p>
+  <ol>
+    <li>Locate a text artifact path itself, because no loader exists. For example, guess <code>~/.cache/macroresearch/iter_4/fomc/fomc_events.tsv</code> or use <code>datasets.registry.CACHE_ROOT</code>, which currently points at iter_3.</li>
+    <li>Read events with <code>pd.read_csv(..., sep="\t")</code>.</li>
+    <li>Call <code>build_fomc_features(events)</code>.</li>
+    <li>Inside <code>select_weights</code>, call <code>align_event_features_to_prices(prices, features)</code> on the historical price DataFrame, then inspect the latest aligned numeric row.</li>
+    <li>Use those latest features as a regime gate or asset-allocation tilt, while still returning only tradable-symbol weights.</li>
+    <li>Handle missing text artifacts gracefully, otherwise the run crashes and is rejected.</li>
+  </ol>
+  <p>This path is more complex than price-only momentum and is not scaffolded by the repo. Also, because no FOMC event TSV exists in the observed iter_4 cache, step 1 fails unless someone manually creates the artifact outside the fixed autonomous loop.</p>
+
+  <h2>Important implementation specificities and pitfalls</h2>
+  <ul>
+    <li><strong>Publication lag:</strong> <code>align_event_features_to_prices</code> makes features effective on <code>published_at</code> normalized to date plus one calendar day. A Friday publication becomes Saturday and then forward-fills to the next trading day on reindexing.</li>
+    <li><strong>FOMC minutes date:</strong> The instruction says minutes must align to publication date, not meeting date. The current <code>publication_timestamp_from_url</code> just extracts the first <code>YYYYMMDD</code> from the URL. This is safe only if the URL date really is publication date.</li>
+    <li><strong>Time of day:</strong> FOMC ingestion writes <code>T00:00:00Z</code>. The aligner then adds one day, preventing same-day lookahead but also ignoring exact release times.</li>
+    <li><strong>String metadata in aligned features:</strong> Text feature metadata columns are not automatically stripped before alignment.</li>
+    <li><strong>Hyphenated token behavior:</strong> The tokenizer treats <code>inflation-risk</code> as one token, so simple lexicon words do not match inside hyphenated compounds.</li>
+    <li><strong>SEC data is metadata only:</strong> The code can write <code>cik</code>, <code>accession_number</code>, <code>form_type</code>, <code>accepted_at</code>, and <code>primary_document_url</code>, but not downloaded filing text or derived sector-level uncertainty features.</li>
+    <li><strong>Beige Book has no features:</strong> It can normalize and write documents, but no growth/inflation/labor lexicon or district aggregation exists.</li>
+    <li><strong>FRED is marked not point-in-time safe:</strong> The registry sets <code>fred_numeric.point_in_time_safe=False</code> and notes ALFRED vintages should be preferred. The loop does not provide vintage-safe FRED features.</li>
+  </ul>
+
+  <h2>Why the agent behaved this way</h2>
+  <p>The agent is not ignoring a ready-to-use text feed; it is encountering an instruction/code mismatch. The instruction layer says “consider text data,” but the executable layer says “here is a price-only strategy function; edit only this file; run a price-only evaluator; use the ledger row produced by <code>train.py</code>.” Given that environment, the agent’s local optimum is to keep generating price-momentum variants. The text route requires extra discovery, non-obvious cache paths, absent data artifacts, and ad hoc integration code in the strategy file. Nothing in tests, schema, or the loop forces a text trial, and nothing in <code>prepare.py</code> makes text first-class.</p>
+
+  <h2>Recommended fixes if the goal is actual text-data experimentation</h2>
+  <ol>
+    <li><strong>Make text artifacts real.</strong> Extend <code>scripts/ingest_public_macro.py</code> or add dedicated scripts that actually fetch and cache FOMC events, Beige Book releases, selected SEC filing text, and vintage-safe macro series. Write manifests with source URLs, hashes, row counts, and point-in-time flags.</li>
+    <li><strong>Fix cache-root consistency.</strong> Change <code>datasets.registry.CACHE_ROOT</code> and its test from <code>iter_3</code> to <code>iter_4</code>, or derive the iteration root from one shared constant.</li>
+    <li><strong>Add fixed loaders.</strong> Provide functions such as <code>load_fomc_events()</code>, <code>load_fomc_features(prices)</code>, and <code>load_public_feature_frame(prices)</code> in fixed data code. Agents should not have to guess artifact paths.</li>
+    <li><strong>Expose features cleanly to <code>train.py</code>.</strong> Either pass an aligned feature frame into <code>select_weights</code>, or provide a documented train-safe helper that returns point-in-time aligned numeric features.</li>
+    <li><strong>Broaden feature builders.</strong> Add Beige Book growth/inflation/labor pressure features, SEC sector uncertainty/risk features, and FRED/ALFRED numeric surprise/regime features if those datasets are advertised.</li>
+    <li><strong>Make agent instructions mandatory rather than aspirational.</strong> Add a loop requirement like “at least one in every N formal trials must use a non-price public dataset unless no artifact exists; if no artifact exists, append a <code>needs_data</code> diagnostic row or report the missing artifact.”</li>
+    <li><strong>Validate actual feature use.</strong> Extend the rationale or run output to record computed feature columns and source artifact paths. This prevents a row from claiming <code>fomc_text</code> in <code>feature_inputs</code> without actually using it.</li>
+  </ol>
+
+  <h2>Bottom line</h2>
+  <p>The repo currently has a <strong>text-data promise</strong> but not a <strong>text-data workflow</strong>. The public text datasets are listed and partially scaffolded, but only price data is operationally loaded and optimized by the autonomous loop. Until text ingestion, cache paths, loaders, aligned feature exposure, and loop requirements are made first-class, the agent will continue to discover that price-only momentum is the shortest path to valid, high-validation-CAGR experiments.</p>
+
+  <h2>Post-implementation status</h2>
+  <p>The recommended fixes have now been implemented in the working tree. The repo has a shared <code>datasets/cache.py</code> iter_4 cache root, real public-data ingestion paths with manifest output and explicit <code>needs_data</code> messages, validated fixed loaders, publication-lagged public feature frames, broadened FOMC/Beige/SEC/FRED feature builders, automatic public feature joining in <code>prepare.py</code>, mandatory feature-usage output in <code>program.md</code>, and a first text-enabled <code>train.py</code> candidate.</p>
+  <p>The completed candidate prints actual non-price feature columns and source artifacts, appends them into the ledger description, and produced a non-ruined keep row with validation CAGR above the previous best. The latest verification run passed <code>uv run pytest -q</code>, <code>uv run mypy .</code>, and <code>uv run ruff check .</code>.</p>
+
+  <p class="muted small">Verification performed: inspected source files, parsed <code>results.tsv</code>, checked cache directories, and ran <code>uv run pytest -q tests/test_datasets.py tests/test_text_features.py tests/test_public_text_ingestion.py</code> successfully (13 passed). Post-implementation verification: <code>uv run pytest -q</code> (59 passed), <code>uv run mypy .</code>, <code>uv run ruff check .</code>, <code>uv run scripts/ingest_public_macro.py</code>, and <code>uv run train.py &gt; run.log 2&gt;&amp;1</code>.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+---
+cagr:             0.247848
+ruined:           false
+ruin_threshold:   0.250000
+dbmf_cagr:        0.093952
+dbmf_ruined:      false
+excess_cagr_vs_dbmf: 0.153896
+end_multiple:     4.772280
+start:            2019-05-08
+end:              2026-05-29
+observations:     1775
+feature_usage_columns: beige_beige_activity_score,beige_beige_labor_score,beige_beige_price_pressure_score,beige_beige_token_count,fomc_hawkish_minus_dovish,fomc_token_count,fomc_uncertainty_score,sec_sec_10k_count,sec_sec_10q_count,sec_sec_8k_count,sec_sec_filing_count
+feature_source_artifacts: /Users/nyp/.cache/macroresearch/iter_4/fomc/fomc_events.tsv,/Users/nyp/.cache/macroresearch/iter_4/beige_book/beige_book_events.tsv,/Users/nyp/.cache/macroresearch/iter_4/sec/sec_filings.tsv
+train_cagr:       0.100452
+validation_cagr:  0.463617
+oos_cagr:         0.374230
+benchmark_oos_cagr: 0.175494
+excess_oos_cagr_vs_dbmf: 0.198736
+oos_passed:       true

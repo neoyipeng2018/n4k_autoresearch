@@ -1,0 +1,20 @@
+# Local experiment outputs
+results.tsv
+run.log
+*.log
+
+# Local caches and tool output
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+
+# Environments
+.venv/
+.env
+.env.*
+
+# OS/editor noise
+.DS_Store

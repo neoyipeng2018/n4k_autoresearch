@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Plan: Make Public Text Data Operational in iter_4</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; --line:#334155; --accent:#38bdf8; --good:#34d399; --warn:#f59e0b; --bad:#f87171; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; line-height:1.55; }
+    main { max-width:1180px; margin:0 auto; padding:40px 24px 90px; }
+    h1 { font-size:2.25rem; margin-bottom:.25rem; }
+    h2 { margin-top:2.2rem; padding-top:1.1rem; border-top:1px solid var(--line); }
+    h3 { color:#e0f2fe; margin-top:1.6rem; }
+    h4 { color:#bfdbfe; margin-bottom:.3rem; }
+    p, li { color:var(--ink); }
+    .muted { color:var(--muted); }
+    .callout { border-left:4px solid var(--accent); background:rgba(56,189,248,.10); padding:14px 16px; border-radius:12px; }
+    .warn { border-left-color:var(--warn); background:rgba(245,158,11,.10); }
+    .bad { border-left-color:var(--bad); background:rgba(248,113,113,.10); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:20px 0; }
+    .card { background:rgba(17,24,39,.86); border:1px solid var(--line); border-radius:14px; padding:16px; }
+    .card strong { display:block; color:var(--muted); text-transform:uppercase; font-size:.82rem; letter-spacing:.05em; }
+    .card span { display:block; font-size:1.2rem; margin-top:6px; color:#fff; }
+    code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    code { background:rgba(148,163,184,.18); border:1px solid rgba(148,163,184,.25); padding:.1rem .35rem; border-radius:6px; }
+    pre { white-space:pre-wrap; background:#020617; border:1px solid var(--line); border-radius:12px; padding:14px; overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; margin:18px 0; font-size:.94rem; }
+    th, td { border:1px solid var(--line); padding:10px 12px; vertical-align:top; }
+    th { background:rgba(56,189,248,.14); text-align:left; }
+    tr:nth-child(even) td { background:rgba(255,255,255,.025); }
+    .todo li { margin:.25rem 0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Implementation Plan: Make Public Text Data Operational in <code>iter_4</code></h1>
+  <p class="muted">This plan turns the current text-data promise into a usable, tested, point-in-time feature workflow for the autonomous macro autoresearch loop.</p>
+
+  <section class="callout">
+    <p><strong>Goal:</strong> Make FOMC, Beige Book, SEC EDGAR, and FRED/ALFRED-style public data materially usable by autonomous experiments while preserving the project rule that strategy iterations edit only <code>train.py</code>.</p>
+    <p><strong>Architecture:</strong> Build a fixed public-data layer under <code>datasets/</code> that ingests artifacts into a consistent cache, constructs publication-lagged numeric feature frames, exposes a train-safe feature loader, records artifact provenance, and requires/validates actual non-price feature usage in the experiment loop.</p>
+    <p><strong>Tech stack:</strong> Python 3.10, pandas, requests, pytest, mypy strict, ruff, TSV manifests, append-only <code>results.tsv</code>.</p>
+  </section>
+
+  <div class="grid">
+    <div class="card"><strong>Primary files</strong><span><code>datasets/*</code>, <code>prepare.py</code>, <code>program.md</code>, tests</span></div>
+    <div class="card"><strong>Editable strategy stays</strong><span><code>train.py</code> only during future experiments</span></div>
+    <div class="card"><strong>Core invariant</strong><span>No feature visible before publication + lag</span></div>
+    <div class="card"><strong>Final gates</strong><span>pytest, mypy, ruff, train run</span></div>
+  </div>
+
+  <h2>Phase 0 — Repository hygiene and baseline characterization</h2>
+  <p>Before implementation, document the current behavior so regressions are obvious.</p>
+  <ul class="todo">
+    <li>☑ Run <code>git status --short</code> and note unrelated dirty files.</li>
+    <li>☑ Confirm <code>iter_4/plan.html</code> is planning-only until implementation begins.</li>
+    <li>☑ Run current targeted tests: <code>uv run pytest -q tests/test_datasets.py tests/test_text_features.py tests/test_public_text_ingestion.py</code>.</li>
+    <li>☑ Capture current <code>results.tsv</code> feature families for comparison after text-enabled trials.</li>
+  </ul>
+  <pre>uv run pytest -q tests/test_datasets.py tests/test_text_features.py tests/test_public_text_ingestion.py
+uv run mypy .
+uv run ruff check .</pre>
+
+  <h2>✅ Phase 1 — Fix cache-root consistency</h2>
+  <p><strong>Status: completed.</strong> The registry, price ingestion, and <code>prepare.py</code> now share <code>datasets/cache.py</code> and point at <code>~/.cache/macroresearch/iter_4</code>.</p>
+
+  <h3>Task 1.1: Add a shared cache module</h3>
+  <p><strong>Files:</strong> create <code>datasets/cache.py</code>; modify <code>datasets/registry.py</code>, <code>datasets/ingest_prices.py</code>, and tests.</p>
+  <pre>from __future__ import annotations
+
+from pathlib import Path
+
+CACHE_ROOT = Path.home() / ".cache" / "macroresearch" / "iter_4"
+MARKET_DIR = CACHE_ROOT / "market"
+FOMC_DIR = CACHE_ROOT / "fomc"
+BEIGE_BOOK_DIR = CACHE_ROOT / "beige_book"
+SEC_DIR = CACHE_ROOT / "sec"
+FRED_DIR = CACHE_ROOT / "fred"
+FEATURE_DIR = CACHE_ROOT / "features"
+MANIFEST_PATH = CACHE_ROOT / "artifact_manifest.tsv"
+</pre>
+
+  <h3>Task 1.2: Update imports</h3>
+  <pre># datasets/registry.py
+from datasets.cache import CACHE_ROOT
+
+# datasets/ingest_prices.py
+from datasets.cache import MARKET_DIR
+
+# prepare.py
+from datasets.cache import MARKET_DIR, CACHE_ROOT
+</pre>
+
+  <h3>Task 1.3: Replace stale test</h3>
+  <pre>def test_iter4_cache_root_is_isolated() -> None:
+    assert str(CACHE_ROOT).endswith("macroresearch/iter_4")
+</pre>
+
+  <h3>Verification</h3>
+  <pre>uv run pytest -q tests/test_datasets.py
+uv run mypy .
+uv run ruff check .</pre>
+
+  <h2>✅ Phase 2 — Make text artifacts real</h2>
+  <p><strong>Status: completed.</strong> Ingestion now includes price artifacts, bounded FOMC/Beige/SEC/FRED paths, explicit <code>needs_data</code> handling, and an artifact manifest writer.</p>
+
+  <h3>Task 2.1: Add a generic HTTP fetch helper</h3>
+  <p><strong>Files:</strong> create <code>datasets/http.py</code>; tests in <code>tests/test_public_text_ingestion.py</code>.</p>
+  <pre>from __future__ import annotations
+
+import time
+import requests
+
+HTTP_HEADERS = {
+    "User-Agent": "n4k-autoresearch/0.1 research contact: public-web" 
+}
+
+def fetch_text_url(url: str, timeout: int = 30, delay_seconds: float = 0.2) -> str:
+    response = requests.get(url, headers=HTTP_HEADERS, timeout=timeout)
+    response.raise_for_status()
+    time.sleep(delay_seconds)
+    return response.text
+</pre>
+
+  <h3>Task 2.2: FOMC ingestion end-to-end</h3>
+  <p>Add a top-level function that downloads the FOMC calendar page, parses document links, fetches documents, and writes <code>fomc_events.tsv</code>. Keep the existing parser and writer, but add orchestration.</p>
+  <pre>FOMC_INDEX_URL = "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm"
+
+def ingest_fomc(output_dir: Path, fetcher: Callable[[str], str] = fetch_text_url) -> Path:
+    index_html = fetcher(FOMC_INDEX_URL)
+    docs = parse_fomc_index(index_html, FOMC_INDEX_URL)
+    docs = [doc for doc in docs if doc.document_type in {"statement", "minutes"}]
+    return write_fomc_events(docs, output_dir, fetcher)
+</pre>
+  <p><strong>Test:</strong> use a fake fetcher keyed by URL. Verify two rows and stable <code>published_at</code>, <code>document_type</code>, <code>url</code>, <code>text_sha256</code>, and <code>text</code>.</p>
+
+  <h3>Task 2.3: Beige Book ingestion end-to-end</h3>
+  <p>Start with a curated release index approach. The Federal Reserve Beige Book page changes structure; tests should validate parsing fixtures, not live pages.</p>
+  <pre>@dataclass(frozen=True)
+class BeigeBookLink:
+    published_at: str
+    title: str
+    url: str
+    district: str = "National"
+
+def ingest_beige_book(output_dir: Path, fetcher: Callable[[str], str] = fetch_text_url) -> Path:
+    index_html = fetcher(BEIGE_BOOK_INDEX_URL)
+    links = parse_beige_book_index(index_html, BEIGE_BOOK_INDEX_URL)
+    documents = [
+        normalize_beige_book_document(link.published_at, link.title, link.url, fetcher(link.url), link.district)
+        for link in links
+    ]
+    return write_beige_book_events(documents, output_dir)
+</pre>
+
+  <h3>Task 2.4: SEC ingestion as metadata + selected filing text</h3>
+  <p>Keep scope small: selected large sector ETF representative companies or index constituents later. Initial implementation should fetch submissions for a configured CIK list and optionally primary document text for recent 10-K/10-Q filings.</p>
+  <pre>SEC_USER_AGENT = "n4k-autoresearch research public-data contact@example.com"
+DEFAULT_SEC_CIKS = ("0000320193", "0000789019", "0001018724")
+
+def ingest_sec_filings(ciks: tuple[str, ...], output_dir: Path) -> Path:
+    filings: list[EdgarFiling] = []
+    for cik in ciks:
+        payload = fetch_sec_json(submissions_url(cik))
+        filings.extend(parse_recent_filings(payload, forms={"10-K", "10-Q"}, limit_per_cik=8))
+    return write_sec_filings(filings, output_dir)
+</pre>
+  <p class="callout warn">Do not over-crawl SEC. Respect fair-access headers, rate limits, and bounded CIK/form lists.</p>
+
+  <h3>Task 2.5: FRED/ALFRED-style ingestion</h3>
+  <p>For point-in-time safety, prefer ALFRED vintage queries where possible. If no API key exists, implement a clear <code>needs_data</code> message rather than silently using revised data as if it were vintage-safe.</p>
+  <pre>DEFAULT_FRED_SERIES = (
+    FredSeriesSpec("DGS10", "10-year Treasury yield", True),
+    FredSeriesSpec("DGS2", "2-year Treasury yield", True),
+    FredSeriesSpec("T10Y2Y", "10y minus 2y Treasury spread", True),
+    FredSeriesSpec("BAA10Y", "BAA credit spread over 10y Treasury", True),
+)
+</pre>
+
+  <h3>Task 2.6: Update public macro ingestion script</h3>
+  <pre>from datasets.cache import BEIGE_BOOK_DIR, FOMC_DIR, FRED_DIR, MARKET_DIR, SEC_DIR, MANIFEST_PATH
+from datasets.ingest_beige_book import ingest_beige_book
+from datasets.ingest_fomc import ingest_fomc
+from datasets.ingest_fred import ingest_fred_series
+from datasets.ingest_prices import ingest_prices
+from datasets.ingest_sec import ingest_sec_filings
+
+
+def main() -> None:
+    artifacts = []
+    artifacts.extend(ingest_prices_artifacts())
+    artifacts.append(ingest_fomc_artifact(FOMC_DIR))
+    artifacts.append(ingest_beige_book_artifact(BEIGE_BOOK_DIR))
+    artifacts.append(ingest_sec_artifact(SEC_DIR))
+    artifacts.append(ingest_fred_artifact(FRED_DIR))
+    write_artifact_manifest(artifacts, MANIFEST_PATH)
+</pre>
+
+  <h3>Verification</h3>
+  <pre>uv run pytest -q tests/test_public_text_ingestion.py
+uv run scripts/ingest_public_macro.py
+find ~/.cache/macroresearch/iter_4 -maxdepth 2 -type f | sort
+</pre>
+
+  <h2>✅ Phase 3 — Add fixed loaders and feature frames</h2>
+  <p><strong>Status: completed.</strong> <code>datasets/loaders.py</code> and <code>datasets/public_features.py</code> now expose validated loaders, aligned numeric public feature frames, and claimed-vs-actual usage helpers.</p>
+
+  <h3>Task 3.1: Create <code>datasets/loaders.py</code></h3>
+  <pre>from __future__ import annotations
+
+from pathlib import Path
+import pandas as pd
+
+from datasets.cache import FOMC_DIR, BEIGE_BOOK_DIR, SEC_DIR, FRED_DIR
+
+class MissingPublicDataError(RuntimeError):
+    pass
+
+def read_tsv(path: Path, required_columns: set[str]) -> pd.DataFrame:
+    if not path.exists():
+        raise MissingPublicDataError(f"Missing public data artifact: {path}")
+    frame = pd.read_csv(path, sep="\t")
+    missing = required_columns.difference(frame.columns)
+    if missing:
+        raise ValueError(f"{path} missing columns: {', '.join(sorted(missing))}")
+    return frame
+
+def load_fomc_events() -> pd.DataFrame:
+    return read_tsv(FOMC_DIR / "fomc_events.tsv", {"published_at", "document_type", "url", "text"})
+
+def load_beige_book_events() -> pd.DataFrame:
+    return read_tsv(BEIGE_BOOK_DIR / "beige_book_events.tsv", {"published_at", "district", "url", "text"})
+
+def load_sec_filings() -> pd.DataFrame:
+    return read_tsv(SEC_DIR / "sec_filings.tsv", {"cik", "accession_number", "form_type", "accepted_at"})
+
+def load_fred_observations() -> pd.DataFrame:
+    return read_tsv(FRED_DIR / "fred_observations.tsv", {"series_id", "date", "realtime_start", "value"})
+</pre>
+
+  <h3>Task 3.2: Create <code>datasets/public_features.py</code></h3>
+  <p>This is the train-safe API. It returns only numeric features aligned to the supplied price index.</p>
+  <pre>from __future__ import annotations
+
+import pandas as pd
+
+from datasets.loaders import load_fomc_events, load_beige_book_events, load_fred_observations
+from datasets.text_features import (
+    build_fomc_features,
+    build_beige_book_features,
+    align_event_features_to_prices,
+)
+
+def numeric_feature_columns(frame: pd.DataFrame) -> list[str]:
+    return [name for name in frame.columns if name != "published_at" and pd.api.types.is_numeric_dtype(frame[name])]
+
+def load_fomc_feature_frame(prices: pd.DataFrame) -> pd.DataFrame:
+    events = load_fomc_events()
+    features = build_fomc_features(events)
+    numeric = features[["published_at", *numeric_feature_columns(features)]]
+    aligned = align_event_features_to_prices(prices, numeric)
+    return aligned.add_prefix("fomc_")
+
+def load_public_feature_frame(prices: pd.DataFrame) -> pd.DataFrame:
+    frames = [load_fomc_feature_frame(prices)]
+    # Add Beige Book, SEC, and FRED frames as their builders land.
+    return pd.concat(frames, axis=1).sort_index()
+</pre>
+
+  <h3>Task 3.3: Add loader tests</h3>
+  <pre>def test_load_fomc_feature_frame_returns_numeric_aligned_features(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cache = tmp_path / "fomc"
+    cache.mkdir(parents=True)
+    (cache / "fomc_events.tsv").write_text(
+        "published_at\tdocument_type\ttitle\turl\ttext_sha256\ttext\n"
+        "2024-01-03T20:00:00Z\tstatement\tFOMC\thttps://fed\tabc\tInflation elevated restrictive\n"
+    )
+    monkeypatch.setattr("datasets.loaders.FOMC_DIR", cache)
+    prices = pd.DataFrame({"SPY": [1.0, 1.1, 1.2]}, index=pd.to_datetime(["2024-01-03", "2024-01-04", "2024-01-05"]))
+    features = load_fomc_feature_frame(prices)
+    assert "fomc_hawkish_minus_dovish" in features.columns
+    assert pd.isna(features.loc[pd.Timestamp("2024-01-03"), "fomc_hawkish_minus_dovish"])
+    assert features.loc[pd.Timestamp("2024-01-04"), "fomc_hawkish_minus_dovish"] > 0
+</pre>
+
+  <h2>✅ Phase 4 — Broaden feature builders</h2>
+  <p>Implement advertised feature families with small, auditable lexicons first. Prefer simple deterministic features over black-box NLP.</p>
+
+  <h3>Task 4.1: Beige Book growth / inflation / labor pressure features</h3>
+  <pre>GROWTH_TERMS = frozenset({"growth", "expanded", "expansion", "strong", "solid", "robust"})
+SLOWDOWN_TERMS = frozenset({"slowed", "slow", "weak", "declined", "softened", "contraction"})
+INFLATION_TERMS = frozenset({"inflation", "prices", "costs", "wages", "pressure", "elevated"})
+LABOR_TIGHT_TERMS = frozenset({"labor", "shortage", "hiring", "wage", "employment", "workers"})
+
+def build_beige_book_features(events: pd.DataFrame) -> pd.DataFrame:
+    required = {"published_at", "text"}
+    missing = required.difference(events.columns)
+    if missing:
+        raise ValueError(f"Beige Book events missing required columns: {', '.join(sorted(missing))}")
+    rows: list[dict[str, object]] = []
+    for row in events.sort_values("published_at").itertuples(index=False):
+        text = str(getattr(row, "text"))
+        tokens = tokenize(text)
+        rows.append({
+            "published_at": pd.Timestamp(getattr(row, "published_at")),
+            "token_count": len(tokens),
+            "growth_minus_slowdown": lexicon_score(text, GROWTH_TERMS, SLOWDOWN_TERMS),
+            "inflation_pressure": lexicon_score(text, INFLATION_TERMS, frozenset[str]()),
+            "labor_tightness": lexicon_score(text, LABOR_TIGHT_TERMS, frozenset[str]()),
+        })
+    return pd.DataFrame(rows)
+</pre>
+
+  <h3>Task 4.2: SEC filing risk / uncertainty metadata features</h3>
+  <p>Initial SEC feature should be based on filing metadata counts and optional text hashes, not full NLP over huge filings. Align by <code>accepted_at</code>.</p>
+  <pre>def build_sec_metadata_features(filings: pd.DataFrame) -> pd.DataFrame:
+    required = {"accepted_at", "form_type", "cik"}
+    missing = required.difference(filings.columns)
+    if missing:
+        raise ValueError(f"SEC filings missing columns: {', '.join(sorted(missing))}")
+    frame = filings.copy()
+    frame["published_at"] = pd.to_datetime(frame["accepted_at"], utc=True)
+    frame["is_10q"] = (frame["form_type"] == "10-Q").astype(float)
+    frame["is_10k"] = (frame["form_type"] == "10-K").astype(float)
+    daily = frame.groupby(frame["published_at"].dt.normalize()).agg(
+        sec_filing_count=("cik", "count"), sec_10q_share=("is_10q", "mean"), sec_10k_share=("is_10k", "mean")
+    ).reset_index().rename(columns={"published_at": "published_at"})
+    return daily
+</pre>
+
+  <h3>Task 4.3: FRED numeric features</h3>
+  <pre>def build_fred_features(observations: pd.DataFrame) -> pd.DataFrame:
+    frame = observations.copy()
+    frame["published_at"] = pd.to_datetime(frame["realtime_start"], utc=True)
+    frame["value"] = pd.to_numeric(frame["value"], errors="coerce")
+    wide = frame.pivot_table(index="published_at", columns="series_id", values="value", aggfunc="last").sort_index()
+    if {"DGS10", "DGS2"}.issubset(wide.columns):
+        wide["yield_curve_10y_2y"] = wide["DGS10"] - wide["DGS2"]
+    wide["published_at"] = wide.index
+    return wide.reset_index(drop=True)
+</pre>
+
+  <h2>✅ Phase 5 — Expose features cleanly to <code>train.py</code></h2>
+  <p>Do not force agents to edit <code>prepare.py</code> during strategy trials. Add a stable public feature loader and show a sanctioned pattern in <code>program.md</code>.</p>
+
+  <h3>Recommended train-safe usage pattern</h3>
+  <pre>from datasets.loaders import MissingPublicDataError
+from datasets.public_features import load_public_feature_frame
+
+FEATURES: pd.DataFrame | None = None
+FEATURES_AVAILABLE = False
+
+
+def get_features(prices: pd.DataFrame) -> pd.DataFrame:
+    global FEATURES, FEATURES_AVAILABLE
+    if FEATURES is None:
+        try:
+            FEATURES = load_public_feature_frame(prices)
+            FEATURES_AVAILABLE = True
+        except MissingPublicDataError:
+            FEATURES = pd.DataFrame(index=prices.index)
+            FEATURES_AVAILABLE = False
+    return FEATURES.reindex(prices.index)
+
+
+def select_weights(day: pd.Timestamp, prices: pd.DataFrame) -> dict[str, float]:
+    features = get_features(prices)
+    latest = features.dropna(how="all").iloc[-1] if not features.dropna(how="all").empty else None
+    if latest is not None and latest.get("fomc_hawkish_minus_dovish", 0.0) > 0.002:
+        # Example: defensive tilt during hawkish policy tone.
+        return {"SGOV": 1.0}
+    return price_momentum_weights(prices)
+</pre>
+  <p>The sanctioned pattern must require the strategy to record whether features were actually available and which columns were used.</p>
+
+  <h2>✅ Phase 6 — Validate actual feature use</h2>
+  <p>Prevent rows that claim <code>fomc_text</code> in <code>feature_inputs</code> while using only prices.</p>
+
+  <h3>Task 6.1: Add feature usage reporting</h3>
+  <p>Because changing <code>results.tsv</code> schema can disrupt existing artifacts, prefer adding structured usage text to <code>human_notes</code> and printing parseable lines. If schema changes are allowed, add columns later.</p>
+  <pre>@dataclass(frozen=True)
+class FeatureUsage:
+    source_artifacts: tuple[str, ...]
+    feature_columns: tuple[str, ...]
+    non_price_feature_available: bool
+
+FEATURE_USAGE = FeatureUsage((), (), False)
+
+# train.py output
+print(f"non_price_feature_available: {str(FEATURE_USAGE.non_price_feature_available).lower()}")
+print(f"feature_columns_used: {','.join(FEATURE_USAGE.feature_columns)}")
+print(f"source_artifacts_used: {','.join(FEATURE_USAGE.source_artifacts)}")
+</pre>
+
+  <h3>Task 6.2: Add schema-level optional columns if acceptable</h3>
+  <pre>RESULT_FIELDNAMES = [
+    ...,
+    "description",
+    "non_price_feature_available",
+    "feature_columns_used",
+    "source_artifacts_used",
+]
+</pre>
+  <p>If old rows must remain readable, update ledger parsing to tolerate missing trailing columns.</p>
+
+  <h3>Task 6.3: Test claimed-vs-actual use</h3>
+  <pre>def test_text_claim_requires_feature_usage() -> None:
+    idea = make_idea(feature_inputs=("fomc_text", "price_momentum_21d"))
+    usage = FeatureUsage(source_artifacts=(), feature_columns=(), non_price_feature_available=False)
+    with pytest.raises(ValueError, match="claims non-price features"):
+        validate_feature_usage_claims(idea, usage)
+</pre>
+
+  <h2>✅ Phase 7 — Make agent instructions mandatory</h2>
+  <p>Update <code>program.md</code> so text usage is part of the loop rather than an optional suggestion.</p>
+  <pre>## Non-price public dataset requirement
+
+At least one in every five formal candidate trials must use an operational non-price public dataset
+(FOMC, Beige Book, SEC EDGAR, or FRED/ALFRED) when the relevant artifact exists. If no artifact exists,
+append a diagnostic note and run `uv run scripts/ingest_public_macro.py` before continuing.
+
+A strategy claiming text or macro feature inputs must print:
+
+non_price_feature_available: true
+feature_columns_used: &lt;comma-separated columns&gt;
+source_artifacts_used: &lt;paths or dataset names&gt;
+
+Rows that list `fomc_text`, `beige_book_text`, `sec_edgar`, or `fred_numeric` in `feature_inputs`
+but do not use computed non-price features are invalid.
+</pre>
+
+  <h2>✅ Phase 8 — Add a first text-enabled candidate template</h2>
+  <p>After infrastructure lands, create a reference text-enabled <code>train.py</code> variant for agents to imitate. Do not optimize it as the final strategy; use it as a proof that the data path works.</p>
+  <pre>IDEA = IdeaRationale(
+    idea_id="fomc_policy_tone_defensive_gate_001",
+    title="FOMC policy tone defensive gate",
+    evidence_type="policy_transmission",
+    mechanism="Hawkish FOMC language can tighten financial conditions, raising discount rates and hurting duration-sensitive risk assets; a cash or defensive tilt after hawkish releases may reduce ruin risk.",
+    expected_assets=("SPY", "QQQ", "TLT", "GLD", "SGOV"),
+    feature_inputs=("fomc_text", "hawkish_minus_dovish", "uncertainty_score", "price_momentum_21d"),
+    oos_hypothesis="Publication-lagged FOMC tone can improve validation CAGR without ruin; locked OOS remains diagnostic.",
+    falsification="Reject if text artifacts are unavailable, feature usage is not printed, run crashes, ruins, or validation CAGR fails to improve.",
+    references=("Federal Reserve FOMC public statements and minutes", "datasets/text_features.py fomc_lexicon_v1"),
+    human_notes="Uses lagged FOMC hawkish and uncertainty features as a defensive gate around price momentum.",
+)
+</pre>
+
+  <h2>✅ Phase 9 — Notebook and report updates</h2>
+  <p>Update <code>analysis.ipynb</code> so human reviewers can inspect whether text features were available and used.</p>
+  <ul>
+    <li>☑ Add artifact manifest display: dataset, row count, sha256, source URL, point-in-time flag.</li>
+    <li>☑ Add text feature availability summary: first/last event date, feature columns, missing aligned days.</li>
+    <li>☑ Add ledger breakdown: price-only rows vs non-price rows vs invalid claimed-use rows.</li>
+    <li>☑ Regenerate <code>analysis.executed.ipynb</code> and <code>analysis.html</code>.</li>
+  </ul>
+  <pre>uv run --with nbconvert --with ipykernel python -m jupyter nbconvert \
+  --to notebook --execute analysis.ipynb --output analysis.executed.ipynb
+uv run --with nbconvert --with ipykernel python -m jupyter nbconvert \
+  --to html analysis.executed.ipynb --output analysis.html</pre>
+
+  <h2>Detailed TODO checklist</h2>
+  <h3>Cache and registry</h3>
+  <ul class="todo">
+    <li>☑ Create <code>datasets/cache.py</code>.</li>
+    <li>☑ Replace duplicate cache constants in <code>prepare.py</code>, <code>datasets/registry.py</code>, and <code>datasets/ingest_prices.py</code>.</li>
+    <li>☑ Fix <code>test_iter3_cache_root_is_isolated</code> to assert <code>iter_4</code>.</li>
+  </ul>
+  <h3>Ingestion</h3>
+  <ul class="todo">
+    <li>☑ Add reusable HTTP helper with public-data user agent.</li>
+    <li>☑ Add end-to-end FOMC ingestion.</li>
+    <li>☑ Add end-to-end Beige Book ingestion.</li>
+    <li>☑ Add bounded SEC metadata/text ingestion.</li>
+    <li>☑ Add FRED/ALFRED observation ingestion with API-key/needs-data behavior.</li>
+    <li>☑ Update <code>scripts/ingest_public_macro.py</code> to ingest all public datasets and write a manifest.</li>
+  </ul>
+  <h3>Feature engineering</h3>
+  <ul class="todo">
+    <li>☑ Strip non-numeric metadata before alignment.</li>
+    <li>☑ Add Beige Book lexicon features.</li>
+    <li>☑ Add SEC metadata features.</li>
+    <li>☑ Add FRED numeric curve/spread features.</li>
+    <li>☑ Add no-lookahead tests for each feature family.</li>
+  </ul>
+  <h3>Agent loop enforcement</h3>
+  <ul class="todo">
+    <li>☑ Add <code>datasets/loaders.py</code> and <code>datasets/public_features.py</code>.</li>
+    <li>☑ Document train-safe feature usage in <code>program.md</code>.</li>
+    <li>☑ Require parseable feature usage lines for non-price claims.</li>
+    <li>☑ Add claimed-vs-actual feature usage validation.</li>
+  </ul>
+  <h3>Final verification</h3>
+  <ul class="todo">
+    <li>☑ <code>uv run pytest -q</code></li>
+    <li>☑ <code>uv run mypy .</code></li>
+    <li>☑ <code>uv run ruff check .</code></li>
+    <li>☑ <code>uv run scripts/ingest_public_macro.py</code></li>
+    <li>☑ <code>SKIP_APPEND_RESULT=1 uv run train.py &gt; run.log 2&gt;&amp;1</code></li>
+    <li>☑ Inspect <code>run.log</code> for required CAGR lines and feature-usage lines.</li>
+  </ul>
+
+  <h2>Acceptance criteria</h2>
+  <ol>
+    <li><code>datasets.registry.CACHE_ROOT</code>, <code>prepare.py</code>, and ingestion scripts all use <code>~/.cache/macroresearch/iter_4</code>.</li>
+    <li><code>uv run scripts/ingest_public_macro.py</code> creates price, FOMC, Beige Book, SEC, and FRED artifacts where credentials/source availability allow; unavailable credential-bound data fails with explicit <code>needs_data</code> messaging.</li>
+    <li><code>datasets/public_features.py</code> exposes a documented <code>load_public_feature_frame(prices)</code> function returning numeric, point-in-time aligned features.</li>
+    <li>Every feature family has no-lookahead tests.</li>
+    <li>Future <code>train.py</code> strategies can use public text/macro features without editing fixed data files.</li>
+    <li>A strategy that claims non-price features must print actual feature columns and source artifacts, or be marked invalid.</li>
+    <li>The autonomous instructions require periodic non-price public dataset trials when artifacts exist.</li>
+    <li>Full quality gates pass: pytest, mypy, ruff, ingestion smoke test, and train execution.</li>
+  </ol>
+
+  <section class="callout warn">
+    <h2 style="border:0; padding:0; margin-top:0;">Implementation sequencing warning</h2>
+    <p>Do not start with strategy changes. First make artifacts, cache paths, loaders, and aligned feature frames real. Otherwise the agent will keep producing ad hoc, brittle <code>train.py</code> code that crashes when text artifacts are missing.</p>
+  </section>
+
+</main>
+</body>
+</html>
